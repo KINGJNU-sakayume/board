@@ -1,0 +1,11 @@
+{
+  "name": "board",
+  "private": true,
+  "type": "module",
+  "description": "Life Board — Life Hub 앱들의 최근 흐름을 타일로 모아 보는 정적 사이트",
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "dev": "python3 -m http.server 8080",
+    "smoke": "node scripts/smoke.mjs"
+  }
+}

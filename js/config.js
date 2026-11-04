@@ -1,0 +1,36 @@
+// 보드 설정. 개인 값(좌표, 팀, 키)은 여기에 적지 않는다. 그런 값은 각 위젯의 '위젯 설정'에서 넣고 이 브라우저에만 저장된다.
+export const CONFIG = Object.freeze({
+  // Life Hub 보드 API 주소. 아직 Hub에 보드 API가 없으므로 비워 둔다. 비어 있으면 예시 데이터(data/sample-tiles.json)를 보여준다.
+  hubUrl: '',
+
+  // 앱이 보낸 표지 이미지는 이 출처에서만 불러온다. 나머지는 글자 칸으로 바꾼다. data:image/ 는 항상 허용.
+  imageOrigins: [
+    'https://kingjnu-sakayume.github.io',
+    'https://image.aladin.co.kr',
+    'https://upload.wikimedia.org',
+  ],
+
+  // 타일을 눌렀을 때 여는 앱 주소는 이 출처만 허용한다.
+  linkOrigins: ['https://kingjnu-sakayume.github.io'],
+
+  // 그룹 순서와, 앱(Hub 목적지 id)이 처음 놓이는 그룹. 사용자가 옮긴 배치는 따로 저장된다.
+  groups: [
+    { id: 'day', name: '내 하루', apps: ['board', 'hub', 'diaryroulette'] },
+    { id: 'media', name: '미디어', apps: ['animan', 'letterbookxd', 'potcast'] },
+    { id: 'record', name: '정렬 · 기록', apps: ['elosorter', 'achievement', 'sub'] },
+    { id: 'life', name: '장소 · 일상', apps: ['kyeokyeoi', 'food'] },
+  ],
+
+  refreshMs: 5 * 60 * 1000,
+
+  // 상세 창의 '… 열기' 같은 곳에 쓰는 앱 이름 (Life Hub src/destinations.js 의 app 이름과 같게)
+  appNames: {
+    board: '보드', hub: 'Life Hub', animan: 'AniMan', letterbookxd: '책장', potcast: 'potcast', elosorter: 'ELO Sorter',
+    achievement: '업적 라이브러리', sub: '역 도장깨기', kyeokyeoi: '켜켜이', food: 'PALATE', diaryroulette: '일기 룰렛',
+  },
+});
+
+export function groupOfApp(app) {
+  const g = CONFIG.groups.find((x) => x.apps.includes(app));
+  return g ? g.id : CONFIG.groups[CONFIG.groups.length - 1].id;
+}
