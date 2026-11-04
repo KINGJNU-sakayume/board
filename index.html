@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https://kingjnu-sakayume.github.io https://image.aladin.co.kr https://upload.wikimedia.org; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://www.thesportsdb.com; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<title>Life Board</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='6' height='6' rx='1.5' fill='%23888'/%3E%3Crect x='9' y='1' width='6' height='6' rx='1.5' fill='%23888'/%3E%3Crect x='1' y='9' width='14' height='6' rx='1.5' fill='%23888'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/board.css">
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<div class="page" id="page">
+
+<header class="top">
+  <h1>Life Board</h1>
+  <p class="status"><span class="dot" aria-hidden="true"></span><span id="status">불러오는 중…</span></p>
+  <div class="editbar" id="editbar">
+    <button class="pillbtn plus" type="button" id="addBtn" aria-label="위젯 추가">+</button>
+    <button class="pillbtn" type="button" id="doneBtn">완료</button>
+  </div>
+</header>
+<p class="sr" id="live" role="status" aria-live="polite"></p>
+
+<div class="scroller" id="scroller" tabindex="0" role="region" aria-label="타일 보드">
+  <div class="track" id="track"></div>
+</div>
+
+</div>
+
+<!-- 제거했거나 처음부터 숨긴 타일이 머무는 곳 (화면에 안 보임) -->
+<div id="tray" hidden></div>
+
+<div class="toast" id="toast" role="status" hidden><span id="toastMsg"></span><button class="act" type="button" id="toastBtn">되돌리기</button></div>
+
+<dialog id="detailDlg" aria-labelledby="detailT"></dialog>
+<dialog id="setDlg" aria-label="위젯 설정"></dialog>
+<dialog id="addDlg" aria-labelledby="addT">
+  <div class="hd"><h2 id="addT">위젯 추가</h2><button class="act soft" type="button" id="closeAdd">닫기</button></div>
+  <div id="addList" class="mt6"></div>
+  <div class="dfoot"><button class="act quiet" type="button" id="resetLayout">기본 배치로 되돌리기</button></div>
+</dialog>
+</body>
+</html>

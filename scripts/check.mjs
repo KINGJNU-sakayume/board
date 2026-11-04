@@ -1,0 +1,48 @@
+// npm run check — 문법 검사, 예시 데이터 규격 검사, CSP 와 설정의 출처 목록이 맞는지 확인.
+import { readFileSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { CONFIG } from '../js/config.js';
+import { validateManifest, validateTile } from '../js/schema.js';
+
+let fail = 0;
+const ok = (c, m) => { if (!c) { fail++; console.error('✗ ' + m); } else console.log('✓ ' + m); };
+
+for (const f of readdirSync('js')) execFileSync(process.execPath, ['--check', 'js/' + f]);
+ok(true, 'js/*.js 문법');
+
+const policy = { imageOrigins: CONFIG.imageOrigins, linkOrigins: CONFIG.linkOrigins };
+const pack = JSON.parse(readFileSync('data/sample-tiles.json', 'utf8'));
+let n = 0;
+for (const m of pack.manifests) {
+  const v = validateManifest(m, policy);
+  ok(v.ok && v.errors.length === 0, `예시 ${m.app}: 타일 ${v.tiles.length}개${v.errors.length ? ' — ' + v.errors.map((e) => e.message).join('; ') : ''}`);
+  n += v.tiles.length;
+}
+ok(n > 0, `예시 타일 합계 ${n}개`);
+
+// 틀린 입력은 막혀야 한다 (fail closed)
+const bad = [
+  [{ id: 'X', name: 'a', tone: 'type', form: 'num', sizes: ['1x1'], data: { label: 'a', value: 1 } }, '대문자 id'],
+  [{ id: 'a', name: 'a', tone: 'type', form: 'num', sizes: ['3x3'], data: { label: 'a', value: 1 } }, '없는 크기'],
+  [{ id: 'a', name: 'a', tone: 'type', form: 'num', sizes: ['1x1'], size: '2x1', data: { label: 'a', value: 1 } }, 'sizes 밖의 size'],
+  [{ id: 'a', name: 'a', tone: 'glass', sizes: ['1x1'], data: {} }, '없는 톤'],
+  [{ id: 'a', name: 'a', tone: 'type', form: 'num', sizes: ['1x1'], href: 'https://evil.example/', data: { label: 'a', value: 1 } }, '허용 안 된 링크'],
+  [{ id: 'a', name: 'a', tone: 'type', form: 'num', sizes: ['1x1'], href: 'javascript:alert(1)', data: { label: 'a', value: 1 } }, 'javascript: 링크'],
+  [{ id: 'a', name: 'a', tone: 'type', form: 'cells', sizes: ['2x1'], data: { label: 'a', total: 3, filled: 4 } }, 'filled > total'],
+  [{ id: 'a', name: 'a', tone: 'sleeve', sizes: ['2x2'], data: { label: 'a', title: 'b' } }, 'sleeve 표지 없음'],
+];
+for (const [t, why] of bad) { let threw = false; try { validateTile(t, 't', policy); } catch { threw = true; } ok(threw, '막힘: ' + why); }
+const off = validateTile({ id: 'a', name: 'a', tone: 'strip', sizes: ['2x1'], data: { label: 'a', items: [{ title: 'x', cover: { src: 'https://evil.example/a.jpg' } }] } }, 't', policy);
+ok(off.data.items[0].cover.src === undefined, '허용 안 된 이미지 출처는 글자 칸으로');
+ok(validateManifest({ version: 2, app: 'a', generated_at: '2026-01-01T00:00:00Z', tiles: [] }, policy).tiles.length === 0 && !validateManifest({ version: 2, app: 'a', generated_at: '2026-01-01T00:00:00Z', tiles: [] }, policy).ok, '모르는 version 은 통째로 거절');
+
+// CSP 의 img-src / connect-src 가 설정과 맞는지
+const html = readFileSync('index.html', 'utf8');
+const csp = (html.match(/Content-Security-Policy" content="([^"]+)"/) || [])[1] || '';
+const imgSrc = (csp.match(/img-src ([^;]+)/) || [])[1] || '';
+for (const o of CONFIG.imageOrigins) ok(imgSrc.split(/\s+/).includes(o), 'CSP img-src 에 ' + o);
+for (const o of ['https://api.open-meteo.com', 'https://geocoding-api.open-meteo.com', 'https://www.thesportsdb.com']) ok(csp.includes(o), 'CSP connect-src 에 ' + o);
+ok(!/style=/.test(html.replace(/<meta[^>]+>/g, '')), 'index.html 에 인라인 style 없음 (CSP style-src self)');
+
+if (fail) { console.error(`\n${fail}개 실패`); process.exit(1); }
+console.log('\n모두 통과');
