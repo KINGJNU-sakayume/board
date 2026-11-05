@@ -99,6 +99,7 @@ try {
     const man = (app, tiles, receivedDaysAgo = 0) => ({ version: 1, app, generated_at: new Date(now - 6e4).toISOString(), received_at: new Date(now - receivedDaysAgo * 864e5).toISOString(), tiles });
     const line = (id, title) => ({ id, name: '예시 ' + id, tone: 'type', form: 'line', sizes: ['2x1'], data: { label: '실제 모드 예시', title } });
     let tilesStatus = 200, tokenCalls = [];
+    const sync = { doc: null, version: 0, mode: 'ok', puts: [] };   // 가짜 /board/v1/sync
     const q = await b.newPage({ viewport: { width: 1440, height: 900 } });
     await q.route(HUB + '/**', async (route) => {
       const u = new globalThis.URL(route.request().url());
@@ -107,6 +108,17 @@ try {
         tokenCalls.push(body.get('grant_type'));
         if (body.get('grant_type') === 'refresh_token' && tilesStatus === 401) return route.fulfill({ status: 400, contentType: 'application/json', body: '{"error":"invalid_grant"}' });
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: 'at-' + tokenCalls.length, refresh_token: 'rt', token_type: 'bearer', expires_in: 3600, scope: 'board:read' }) });
+      }
+      if (u.pathname === '/board/v1/sync') {
+        const req = route.request(), json = (status, body) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+        if (sync.mode === 'no_scope') return route.fulfill({ status: 403, headers: { 'WWW-Authenticate': 'Bearer error="insufficient_scope", scope="board:sync"', 'Access-Control-Allow-Origin': '*', 'Access-Control-Expose-Headers': 'WWW-Authenticate' }  /* 실제 Hub(OAuth 라이브러리)도 이 헤더를 노출함 */, body: '' });
+        if (req.method() === 'GET') return sync.doc ? json(200, { version: sync.version, doc: sync.doc }) : json(404, { error: 'No document yet' });
+        if (req.method() === 'PUT') {
+          const h = req.headers(), base = h['if-none-match'] === '*' ? 0 : Number(String(h['if-match'] || '').replace(/"/g, ''));
+          if (base !== sync.version) return json(412, { error: 'Precondition failed', current: sync.version ? { version: sync.version } : null });
+          sync.doc = JSON.parse(req.postData()); sync.version += 1; sync.puts.push(base);
+          return json(200, { version: sync.version });
+        }
       }
       if (u.pathname === '/board/v1/tiles') {
         if (tilesStatus !== 200) return route.fulfill({ status: tilesStatus, body: '' });
@@ -130,6 +142,34 @@ try {
     ok(/^Life Hub · /.test(st), '상태 줄: ' + st);
     ok(await q.locator('.w[data-id="sub:old"] .staleb').textContent() === '오래됨 · 20일 전' && !(await q.locator('.w[data-id="animan:now"] .staleb').count()), '오래된 앱 목록에만 오래됨 표시');
     await q.screenshot({ path: 'shots/hub-connected.png' });
+    // 배치 동기화: Hub 에 없으면 이 브라우저 배치로 시작(If-None-Match: *)
+    await q.waitForTimeout(300);
+    ok(sync.version === 1 && sync.puts[0] === 0 && sync.doc.app === 'board' && sync.doc.layout && sync.doc.layout.g, '배치: Hub 에 처음 올림');
+    // 편집해서 크기를 바꾸면 2초 모았다가 If-Match 로 올림
+    await q.keyboard.press('KeyE'); await q.waitForTimeout(150);
+    const wz = q.locator('.w[data-id="board:weather"] .rz'); await wz.focus(); await q.keyboard.press('ArrowRight');
+    const newSize = await q.locator('.w[data-id="board:weather"]').getAttribute('data-size');
+    await q.keyboard.press('Escape'); await q.waitForTimeout(2600);
+    const sent = JSON.stringify(sync.doc.layout);
+    ok(sync.version === 2 && sync.puts[1] === 1 && sent.includes(`"board:weather","${newSize}"`), `배치: 편집 후 올림 (날씨 ${newSize}, 버전 ${sync.version})`);
+    // 다른 기기가 바꿈 → 다시 열면 Hub 배치가 적용됨
+    sync.doc = JSON.parse(sent.replace(`"board:weather","${newSize}"`, '"board:weather","1x1"').replace(/^/, '{"app":"board","version":1,"layout":').replace(/$/, '}'));
+    sync.version = 5;
+    await q.reload(); await q.waitForSelector('.w[data-id="animan:now"]'); await q.waitForTimeout(400);
+    ok(await q.locator('.w[data-id="board:weather"]').getAttribute('data-size') === '1x1', '배치: 다른 기기의 변경을 받아 적용');
+    // 다른 기기가 먼저 썼는데(412) 이 브라우저에서 편집 → 최신 버전 위에 이 편집을 씀
+    sync.version = 7;
+    await q.keyboard.press('KeyE'); await q.waitForTimeout(150);
+    await q.locator('.w[data-id="board:weather"] .rz').focus(); await q.keyboard.press('ArrowRight');
+    const mine = await q.locator('.w[data-id="board:weather"]').getAttribute('data-size');
+    await q.keyboard.press('Escape'); await q.waitForTimeout(2600);
+    ok(sync.version === 8 && JSON.stringify(sync.doc.layout).includes(`"board:weather","${mine}"`), `배치: 412 뒤 최신 버전 위에 내 편집 (버전 ${sync.version})`);
+    // B1 때 받은 연결(board:sync 없음): 타일은 보이고 상태 줄이 다시 연결을 권함
+    sync.mode = 'no_scope';
+    await q.reload(); await q.waitForSelector('.w[data-id="animan:now"]'); await q.waitForTimeout(400);
+    const st3 = await q.locator('#status').textContent();
+    ok(/배치 동기화 권한 없음/.test(st3) && (await q.evaluate(() => !!localStorage.getItem('board.lifehub.tokens.v1'))), '배치 권한 없음: 토큰 유지, 상태 "' + st3 + '"');
+    sync.mode = 'ok';
     // 토큰이 거부되면: 앱 타일을 비우고(예시로 돌아가지 않음) '연결 끊김'
     tilesStatus = 401;
     await q.evaluate(() => { const t = JSON.parse(localStorage.getItem('board.lifehub.tokens.v1')); t.access_expires_at = 0; localStorage.setItem('board.lifehub.tokens.v1', JSON.stringify(t)); });

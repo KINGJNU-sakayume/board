@@ -107,6 +107,28 @@ export async function fetchTiles() {
   return body;
 }
 
+/**
+ * 배치 동기화 요청 (Life Hub /board/v1/sync, P6 동기화 API). fetchTiles 와 403 처리만 다르다:
+ * 403 + insufficient_scope 는 B1 때 받은 연결이라 board:sync 가 없다는 뜻이므로 토큰을 지키고 no_sync_scope 를 던진다.
+ */
+export async function syncRequest(method, path = '', { body, headers = {} } = {}) {
+  const send = async (token) => {
+    try {
+      return await fetch(HUB + '/board/v1/sync' + path, {
+        method, cache: 'no-store', signal: signal(),
+        headers: { Authorization: 'Bearer ' + token, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers },
+        ...(body === undefined ? {} : { body }),
+      });
+    } catch { throw new HubError('network', 'Life Hub에 연결할 수 없어요.'); }
+  };
+  let r = await send(await accessToken());
+  if (r.status === 401) r = await send(await accessToken(true));
+  if (r.status === 403 && /error="?insufficient_scope"?/i.test(r.headers.get('WWW-Authenticate') ?? ''))
+    throw new HubError('no_sync_scope', '이 연결에는 배치 동기화 권한이 없어요. 다시 연결해 주세요.');
+  if (r.status === 401 || r.status === 403) { localStorage.removeItem(TOKENS_KEY); throw new HubError('not_connected', 'Life Hub 연결이 더 이상 유효하지 않아요. 다시 연결해 주세요.'); }
+  return r;
+}
+
 /** 연결 해제: 이 브라우저의 토큰을 지우고 Life Hub 에 폐기를 알린다(실패해도 상관없음). */
 export function disconnect() {
   const t = readJson(localStorage, TOKENS_KEY);

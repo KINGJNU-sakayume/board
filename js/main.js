@@ -7,6 +7,7 @@ import { initEdit } from './edit.js';
 import { WIDGETS, widgetDef, settingsOf, saveSettings } from './widgets.js';
 import { applyAccent } from './accent.js';
 import { setupFaces } from './faces.js';
+import { initLayoutSync } from './layoutsync.js';
 import { connectAvailable, isConnected, beginConnect, completeStoredCallback, fetchTiles, disconnect, HubError } from './hub.js';
 
 const $ = (s, r) => (r || document).querySelector(s);
@@ -15,7 +16,7 @@ const page = $('#page'), sc = $('#scroller'), track = $('#track'), tray = $('#tr
 const detailDlg = $('#detailDlg'), setDlg = $('#setDlg');
 const pad2 = (n) => String(n).padStart(2, '0');
 const tiles = new Map();          // 'app:id' → 타일 요소
-let edit = null, problems = [];
+let edit = null, layout = null, problems = [];
 
 /* ---------- 그룹 ---------- */
 for (const g of CONFIG.groups) {
@@ -201,12 +202,16 @@ function showStatus() {
   const when = hub.mode === 'offline' ? (hub.lastOkAt ? `마지막 ${hm(hub.lastOkAt)}` : '') : lastAt ? `${hm(lastAt)} 갱신` : '';
   const parts = [src, when, problems.length ? `확인할 것 ${problems.length}개` : null, PHONE.matches ? '길게 누르면 편집' : '길게 누르거나 우클릭하면 편집'].filter(Boolean);
   const kids = [document.createTextNode(parts.join(' · '))];
+  const ls = layout && hub.mode === 'hub' ? layout.state.status : 'off';
+  if (ls === 'no_scope') parts.splice(1, 0, '배치 동기화 권한 없음');
+  if (ls === 'error') parts.splice(1, 0, '배치 동기화 실패');
+  kids[0].textContent = parts.join(' · ');
   // 연결 동작은 상태 줄의 글자 단추 하나뿐이다(상시 버튼을 늘리지 않음). 실제 주소에서 열렸을 때만.
-  if (connectAvailable() && (hub.mode === 'sample' || hub.mode === 'lost')) {
-    kids.push(document.createTextNode(' · '), h('button', { class: 'slink', type: 'button', text: hub.mode === 'lost' ? '다시 연결' : 'Life Hub에 연결', onclick: connectHub }));
+  if (connectAvailable() && (hub.mode === 'sample' || hub.mode === 'lost' || ls === 'no_scope')) {
+    kids.push(document.createTextNode(' · '), h('button', { class: 'slink', type: 'button', text: hub.mode === 'sample' ? 'Life Hub에 연결' : '다시 연결', onclick: connectHub }));
   }
   statusEl.replaceChildren(...kids);
-  statusEl.title = [hub.message, ...problems].filter(Boolean).join('\n');
+  statusEl.title = [hub.message, layout && layout.state.message, ...problems].filter(Boolean).join('\n');
   $('#disconnectBtn').hidden = !isConnected();
 }
 async function refresh(first) {
@@ -214,11 +219,12 @@ async function refresh(first) {
   await loadWidgets(first);
   await loadApps(first);
   if (problems.length) console.warn('[board]', problems);
+  if (!first && layout && hub.mode === 'hub' && !edit.isEditing()) await layout.pull();
   lastAt = new Date(); showStatus();
   if (edit) edit.refreshEmpty();
 }
 $('#disconnectBtn').addEventListener('click', async () => {
-  disconnect(); hub.lost = false; hub.message = 'Life Hub 연결을 해제했어요.';
+  disconnect(); if (layout) layout.reset(); hub.lost = false; hub.message = 'Life Hub 연결을 해제했어요.';
   $('#addDlg').close(); await refresh(false);
 });
 
@@ -229,6 +235,7 @@ $('#disconnectBtn').addEventListener('click', async () => {
   await refresh(true);
   edit = initEdit({
     page, sc, tray, live, groups: CONFIG.groups, key: 'board.layout.v1',
+    onChange: () => layout && layout.changed(),
     menuExtra: (t) => {
       const def = t.__def; const w = def && (def.__widget || def.__widgetSettings);
       return w ? [{ label: '위젯 설정', icon: '⚙', run: () => openSettings(w) }] : [];
@@ -236,6 +243,8 @@ $('#disconnectBtn').addEventListener('click', async () => {
   });
   document.querySelectorAll('.w').forEach((t) => edit.attach(t));
   edit.start();
+  layout = initLayoutSync({ snapshot: edit.snapshot, applyRemote: edit.applyRemote, onStatus: () => showStatus() });
+  if (hub.mode === 'hub') { await layout.pull(); showStatus(); }
   watch(sc, edge);
   setInterval(() => { if (!document.hidden && !edit.isEditing()) refresh(false); }, CONFIG.refreshMs);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && lastAt && Date.now() - lastAt > CONFIG.refreshMs) refresh(false); });
