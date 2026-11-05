@@ -30,10 +30,17 @@ const bad = [
   [{ id: 'a', name: 'a', tone: 'type', form: 'num', sizes: ['1x1'], href: 'javascript:alert(1)', data: { label: 'a', value: 1 } }, 'javascript: 링크'],
   [{ id: 'a', name: 'a', tone: 'type', form: 'cells', sizes: ['2x1'], data: { label: 'a', total: 3, filled: 4 } }, 'filled > total'],
   [{ id: 'a', name: 'a', tone: 'sleeve', sizes: ['2x2'], data: { label: 'a', title: 'b' } }, 'sleeve 표지 없음'],
+  [{ id: 'a', name: 'a', tone: 'sleeve', sizes: ['2x2'], data: { label: 'a', title: 'b', cover: {} } }, 'src·mono 둘 다 없는 표지'],
+  [{ id: 'a', name: 'a', tone: 'type', form: 'line', sizes: ['2x1'], data: { label: 'a', title: 'b', sub: '' } }, '빈 글자(선택 필드라도)'],
 ];
 for (const [t, why] of bad) { let threw = false; try { validateTile(t, 't', policy); } catch { threw = true; } ok(threw, '막힘: ' + why); }
 const off = validateTile({ id: 'a', name: 'a', tone: 'strip', sizes: ['2x1'], data: { label: 'a', items: [{ title: 'x', cover: { src: 'https://evil.example/a.jpg' } }] } }, 't', policy);
 ok(off.data.items[0].cover.src === undefined, '허용 안 된 이미지 출처는 글자 칸으로');
+const monoOnly = validateTile({ id: 'a', name: 'a', tone: 'hero', sizes: ['2x2'], data: { label: 'a', title: '봄', cover: { mono: '봄' } } }, 't', policy);
+ok(monoOnly.data.cover.src === undefined && monoOnly.data.cover.mono === '봄', '주소 없는 표지({mono})는 hero·sleeve 를 살린다');
+// 검사 기준(policy)을 빼먹으면 타일이 모두 빠지는데도 ok 가 true — 앱 테스트가 errors 를 봐야 하는 이유
+const noPolicy = validateManifest({ version: 1, app: 'a', generated_at: '2026-01-01T00:00:00Z', tiles: [{ id: 'a', name: 'a', tone: 'type', form: 'num', sizes: ['1x1'], href: 'https://kingjnu-sakayume.github.io/a/', data: { label: 'a', value: 1 } }] });
+ok(noPolicy.ok && noPolicy.tiles.length === 0 && noPolicy.errors.length === 1, 'policy 없이 부르면 ok 인데 타일 0개(앱 테스트 주의 사항)');
 ok(validateManifest({ version: 2, app: 'a', generated_at: '2026-01-01T00:00:00Z', tiles: [] }, policy).tiles.length === 0 && !validateManifest({ version: 2, app: 'a', generated_at: '2026-01-01T00:00:00Z', tiles: [] }, policy).ok, '모르는 version 은 통째로 거절');
 
 // CSP 의 img-src / connect-src 가 설정과 맞는지

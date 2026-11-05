@@ -38,14 +38,18 @@ function originOf(u) { try { const x = new URL(u); return x.protocol === 'https:
 function image(v, path, policy, { opt = true } = {}) {
   if (v === undefined || v === null) { if (opt) return undefined; throw new Bad(`${path}: 표지가 필요해요`); }
   obj(v, path);
-  const src = str(v.src, `${path}.src`, { max: 200000 });
+  // src 가 없으면 글자 칸(mono). 공개 주소가 없는 표지도 표지가 필요한 톤(sleeve·hero)을 살릴 수 있게 한다.
+  const src = str(v.src, `${path}.src`, { max: 200000, opt: true });
+  const mono = str(v.mono, `${path}.mono`, { max: 2, opt: true });
+  if (src === undefined && mono === undefined) throw new Bad(`${path}: src 나 mono 중 하나는 있어야 해요`);
   let ok = false;
-  if (DATA_IMG.test(src)) ok = src.length <= 200000;
+  if (src === undefined) ok = false;
+  else if (DATA_IMG.test(src)) ok = src.length <= 200000;
   else { const o = originOf(src); ok = !!o && policy.imageOrigins.includes(o) && src.length <= 600; }
   return {
     src: ok ? src : undefined,                       // 허용 안 된 출처는 버리고 글자 칸으로 그린다(타일은 살린다)
     alt: v.alt === '' ? '' : str(v.alt, `${path}.alt`, { opt: true }),   // 빈 alt 는 장식용 표지
-    mono: str(v.mono, `${path}.mono`, { max: 2, opt: true }),
+    mono,
   };
 }
 function link(v, path, policy) {

@@ -34,7 +34,7 @@ manifests = [
   ]),
   man("animan", [
     {"id": "now", "name": "AniMan · 정주행 중", "tone": "sleeve", "sizes": ["1x1", "2x1", "2x2", "4x2"], "size": "2x2", "href": APP + "animan/",
-     "data": {"label": "AniMan", "title": "푸른 항로", "sub": "시즌 2\n7화까지", "pill": "어제 이어 봄", "cover": cover(330, shape=0),
+     "data": {"label": "AniMan", "title": "푸른 항로", "sub": "시즌 2\n7화까지", "pill": "11/4 이어 봄", "cover": cover(330, shape=0),
               "progress": {"value": 7, "max": 12, "text": "7 / 12화"}, "listLabel": "최근 정주행",
               "list": [{"title": "푸른 항로", "value": "7화", "cover": cover(330, shape=0)}, {"title": "여름의 끝에서", "value": "3화", "cover": cover(30, shape=1)},
                        {"title": "밤하늘 도서관", "value": "2권", "cover": cover(220, shape=2)}]},
@@ -54,7 +54,7 @@ manifests = [
   man("letterbookxd", [
     {"id": "reading", "name": "책장 · 읽는 중", "tone": "sleeve", "sizes": ["1x1", "2x1", "2x2"], "size": "2x2", "href": APP + "letterbookxd/",
      "data": {"label": "책장", "title": "해안선의 기억", "sub": "예시 출판사 · 3권\n214 / 312쪽", "pill": "읽는 중", "cover": cover(18, shape=2),
-              "progress": {"value": 214, "max": 312, "text": "69% · 오늘 읽음"}}},
+              "progress": {"value": 214, "max": 312, "text": "69% · 11/5 읽음"}}},
     {"id": "recent", "name": "책장 · 최근 읽은 책", "tone": "strip", "sizes": ["2x1", "4x1"], "size": "4x1", "default": False,
      "data": {"label": "책장 · 최근 읽은 책", "items": [{"title": "해안선의 기억", "cover": cover(18, shape=2)}, {"title": "밤의 숲"}, {"title": "길 위의 편지"}, {"title": "바람의 문장"}]}},
     {"id": "series", "name": "책장 · 시리즈 진행", "tone": "type", "form": "cells", "sizes": ["2x1", "4x1"], "size": "2x1",
@@ -88,11 +88,11 @@ manifests = [
     {"id": "next", "name": "업적 · 다음 목표", "tone": "type", "form": "line", "sizes": ["1x1", "2x1"], "size": "2x1", "default": False,
      "data": {"label": "업적 · 다음 목표", "title": "9일 연속 기록", "progress": {"value": 7, "max": 9, "text": "9일 중 7일"}}},
     {"id": "activity", "name": "업적 · 마지막 운동", "tone": "type", "form": "line", "sizes": ["1x1", "2x1"], "size": "2x1", "default": False,
-     "data": {"label": "운동 · 마지막 기록", "title": "러닝 5km", "sub": "3일 전 · 31분"}},
+     "data": {"label": "운동 · 마지막 기록", "title": "러닝 5km", "sub": "11/2 · 31분"}},
   ]),
   man("sub", [
     {"id": "station", "name": "역 도장깨기", "tone": "plate", "sizes": ["1x1", "2x1", "4x2"], "size": "4x2", "href": APP + "sub/",
-     "data": {"label": "역 도장깨기 · 최근 역 · 룰렛", "name": "서현", "roman": "Seohyeon", "sub": "3일 전 · 87 / 150역",
+     "data": {"label": "역 도장깨기 · 최근 역 · 룰렛", "name": "서현", "roman": "Seohyeon", "sub": "11/2 · 87 / 150역",
               "roulette": {"candidates": ["수서", "광명", "동탄", "오송", "판교", "대전", "오리", "정자"]}}},
     {"id": "wish", "name": "역 도장깨기 · 가고 싶은 역", "tone": "plate", "sizes": ["1x1", "2x1"], "size": "1x1", "default": False,
      "data": {"label": "다음 후보", "name": "수서", "roman": "Suseo"}},
