@@ -31,6 +31,8 @@
 | `generated_at` | ISO 8601 시각. 늦게 도착한 옛 목록을 버리는 데 쓰인다(Hub 쪽) |
 | `tiles` | 0~24개. 하나가 틀리면 그 타일만 빠진다 |
 
+목록 전체는 UTF-8로 **64 KiB 이하**여야 Life Hub가 받는다(이미지는 주소만이라 보통 수 KiB~수십 KiB).
+
 ## 2. 타일 공통 필드
 
 ```json
@@ -65,7 +67,9 @@
 ## 3. 작은 조각
 
 **표지 `cover`**: `{ "src": "...", "alt": "", "mono": "푸" }`
-- `src`는 `data:image/(png|jpeg|webp|gif|svg+xml)` 또는 보드 허용 출처(`imageOrigins`)의 https 주소.
+- `src`는 보드 허용 출처(`imageOrigins`)의 https **주소**. 보드를 연 브라우저가 그 주소에서 바로 불러오고, Hub는 이미지를 저장하지 않는다.
+- **앱이 올리는 목록에는 `data:` 이미지를 넣지 않는다.** Life Hub가 `data:`가 들어간 목록을 거절한다(life-hub `docs/P7_BOARD.md` 5.2). 보드 코드가 `data:image/`를 읽을 수 있는 건 이 저장소의 예시 데이터용이다.
+- 공개 주소가 없는 이미지(앱 브라우저 안에만 있는 사진 등)는 보드에 못 띄운다. `cover`를 빼면 글자 칸으로 나온다.
 - 허용되지 않은 출처는 **타일은 살리고 표지만 글자 한 칸(mono)으로** 바꾼다. `mono`가 없으면 제목 첫 글자.
 - 지금 허용 출처: `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`. 다른 출처가 필요하면 board 저장소에 요청한다(`js/config.js`와 `index.html` CSP를 같이 바꿈).
 
