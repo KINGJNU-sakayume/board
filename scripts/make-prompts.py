@@ -62,6 +62,7 @@ TPL = """# {appname} 저장소 프롬프트 — 보드 타일
    - 앱 상태에서 manifest(v1)를 만드는 **순수 함수**(예: `buildBoardTiles(state, now)`)를 추가합니다. 네트워크·저장소 접근 없이 입력만으로 결과가 정해지게 합니다.
    - 타일 `id`는 후보 표의 id를 쓰고, 한 번 정하면 바꾸지 않습니다(사용자 배치가 id로 저장됩니다).
    - 표지가 있으면 `accent {{h, s}}`를 함께 보냅니다. 표지 주소는 board 허용 출처 안이어야 합니다(현재 `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`). 다른 출처가 필요하면 그 표지는 빼고(글자 칸) 저에게 알려 주세요.
+   - 이미지는 **주소만** 넣습니다. `data:` 이미지(글자로 바꾼 이미지)는 넣지 않습니다(Hub가 거절함). 목록 전체는 64 KiB 이하.
    - `href`는 이 앱의 GitHub Pages 주소(`https://kingjnu-sakayume.github.io/...`)만 씁니다.
    - 데이터가 없을 때(처음 쓰는 사용자 등)의 결과도 정합니다: 타일을 빼거나 `muted` 행으로 빈 상태를 보여주기.
    - 글자 길이 제한(라벨 80자, 긴 문장 160자, 이름 30자 등)을 넘으면 함수 안에서 자릅니다.
