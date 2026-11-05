@@ -100,6 +100,7 @@ try {
     const line = (id, title) => ({ id, name: '예시 ' + id, tone: 'type', form: 'line', sizes: ['2x1'], data: { label: '실제 모드 예시', title } });
     let tilesStatus = 200, tokenCalls = [];
     const sync = { doc: null, version: 0, mode: 'ok', puts: [] };   // 가짜 /board/v1/sync
+    const inbox = { approved: [], receipts: [], mode: 'ok' };         // 가짜 /board/v1/candidates, /receipts
     const q = await b.newPage({ viewport: { width: 1440, height: 900 } });
     await q.route(HUB + '/**', async (route) => {
       const u = new globalThis.URL(route.request().url());
@@ -119,6 +120,12 @@ try {
           sync.doc = JSON.parse(req.postData()); sync.version += 1; sync.puts.push(base);
           return json(200, { version: sync.version });
         }
+      }
+      if (u.pathname === '/board/v1/candidates' || u.pathname === '/board/v1/receipts') {
+        if (inbox.mode === 'no_scope') return route.fulfill({ status: 403, headers: { 'WWW-Authenticate': 'Bearer error="insufficient_scope", scope="board:inbox"', 'Access-Control-Allow-Origin': '*', 'Access-Control-Expose-Headers': 'WWW-Authenticate' }, body: '' });
+        if (u.pathname === '/board/v1/candidates') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidates: inbox.approved }) });
+        inbox.receipts.push(JSON.parse(route.request().postData()));
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{"candidate":{}}' });
       }
       if (u.pathname === '/board/v1/tiles') {
         if (tilesStatus !== 200) return route.fulfill({ status: tilesStatus, body: '' });
@@ -164,6 +171,28 @@ try {
     const mine = await q.locator('.w[data-id="board:weather"]').getAttribute('data-size');
     await q.keyboard.press('Escape'); await q.waitForTimeout(2600);
     ok(sync.version === 8 && JSON.stringify(sync.doc.layout).includes(`"board:weather","${mine}"`), `배치: 412 뒤 최신 버전 위에 내 편집 (버전 ${sync.version})`);
+    // 승인된 Claude 메모: 받아서 문서에 저장한 뒤 receipt, 메모 타일
+    inbox.approved = [{ key: 'claude:memo-k1', status: 'approved', approved_at: new Date(now - 36e5).toISOString(),
+      candidate: { schema_version: 1, source: 'claude', candidate_type: 'memo', payload: { text: '시청은 늘고 독서는 잠시 쉬었어요.' } }, final_candidate: null }];
+    await q.reload(); await q.waitForSelector('.w[data-id="memo:latest"]'); await q.waitForTimeout(300);
+    const memoText = await q.locator('.w[data-id="memo:latest"] .ttl').textContent();
+    const stored = (sync.doc.memos || []).map((m) => m.key);
+    const rc = inbox.receipts[0] || {};
+    ok(memoText === '시청은 늘고 독서는 잠시 쉬었어요.' && stored.includes('claude:memo-k1') && rc.key === 'claude:memo-k1' && rc.entity_type === 'memo',
+      `메모: 타일 "${memoText}", 문서에 저장, receipt ${rc.entity_type}`);
+    // 다른 기기가 먼저 문서를 쓴 뒤(412)에도 메모는 사라지지 않음
+    sync.version += 3; sync.doc = { app: 'board', version: 1, layout: sync.doc.layout, memos: [{ key: 'claude:memo-k0', text: '다른 기기에서 받은 메모', approved_at: new Date(now - 72e5).toISOString() }] };
+    const before = sync.version;
+    await q.keyboard.press('KeyE'); await q.waitForTimeout(150);
+    await q.locator('.w[data-id="board:weather"] .rz').focus(); await q.keyboard.press('ArrowLeft');
+    await q.keyboard.press('Escape'); await q.waitForTimeout(2600);
+    const keys = (sync.doc.memos || []).map((m) => m.key).sort().join(',');
+    ok(sync.version === before + 1 && keys === 'claude:memo-k0,claude:memo-k1', `메모: 412 뒤 두 기기의 메모를 합쳐 저장 (${keys})`);
+    // B4 전에 받은 연결(board:inbox 없음): 메모 권한 없음 안내, 토큰 유지
+    inbox.mode = 'no_scope';
+    await q.reload(); await q.waitForSelector('.w[data-id="animan:now"]'); await q.waitForTimeout(400);
+    ok(/메모 권한 없음/.test(await q.locator('#status').textContent()) && (await q.evaluate(() => !!localStorage.getItem('board.lifehub.tokens.v1'))), '메모 권한 없음: 안내, 토큰 유지');
+    inbox.mode = 'ok';
     // B1 때 받은 연결(board:sync 없음): 타일은 보이고 상태 줄이 다시 연결을 권함
     sync.mode = 'no_scope';
     await q.reload(); await q.waitForSelector('.w[data-id="animan:now"]'); await q.waitForTimeout(400);

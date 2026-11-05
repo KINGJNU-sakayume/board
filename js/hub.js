@@ -129,6 +129,28 @@ export async function syncRequest(method, path = '', { body, headers = {} } = {}
   return r;
 }
 
+/**
+ * 보드 수신함 요청 (Claude 메모, life-hub docs/P7_BOARD.md 7장). 403 + insufficient_scope 는 B4 전에 받은 연결이라
+ * board:inbox 가 없다는 뜻: 토큰을 지키고 no_inbox_scope 를 던진다.
+ */
+export async function inboxRequest(method, path, body) {
+  const send = async (token) => {
+    try {
+      return await fetch(HUB + '/board/v1' + path, {
+        method, cache: 'no-store', signal: signal(),
+        headers: { Authorization: 'Bearer ' + token, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+    } catch { throw new HubError('network', 'Life Hub에 연결할 수 없어요.'); }
+  };
+  let r = await send(await accessToken());
+  if (r.status === 401) r = await send(await accessToken(true));
+  if (r.status === 403 && /error="?insufficient_scope"?/i.test(r.headers.get('WWW-Authenticate') ?? ''))
+    throw new HubError('no_inbox_scope', '이 연결에는 메모 권한이 없어요. 다시 연결해 주세요.');
+  if (r.status === 401 || r.status === 403) { localStorage.removeItem(TOKENS_KEY); throw new HubError('not_connected', 'Life Hub 연결이 더 이상 유효하지 않아요. 다시 연결해 주세요.'); }
+  return r;
+}
+
 /** 연결 해제: 이 브라우저의 토큰을 지우고 Life Hub 에 폐기를 알린다(실패해도 상관없음). */
 export function disconnect() {
   const t = readJson(localStorage, TOKENS_KEY);

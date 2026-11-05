@@ -5,7 +5,7 @@ export const CONFIG = Object.freeze({
   hub: {
     origin: 'https://life-hub-api.213303.workers.dev',
     appUrl: 'https://kingjnu-sakayume.github.io/board/',   // 이 주소에서 열렸을 때만 연결할 수 있다(로컬은 예시 모드)
-    scope: 'board:read board:sync',
+    scope: 'board:read board:sync board:inbox',
   },
   staleDays: 14,   // Hub가 받은 지 이만큼 지난 앱 목록은 '오래됨'으로 표시
 
@@ -21,7 +21,7 @@ export const CONFIG = Object.freeze({
 
   // 그룹 순서와, 앱(Hub 목적지 id)이 처음 놓이는 그룹. 사용자가 옮긴 배치는 따로 저장된다.
   groups: [
-    { id: 'day', name: '내 하루', apps: ['board', 'hub', 'diaryroulette'] },
+    { id: 'day', name: '내 하루', apps: ['board', 'hub', 'memo', 'diaryroulette'] },
     { id: 'media', name: '미디어', apps: ['animan', 'letterbookxd', 'potcast'] },
     { id: 'record', name: '정렬 · 기록', apps: ['elosorter', 'achievement', 'sub'] },
     { id: 'life', name: '장소 · 일상', apps: ['kyeokyeoi', 'food'] },
@@ -31,7 +31,7 @@ export const CONFIG = Object.freeze({
 
   // 상세 창의 '… 열기' 같은 곳에 쓰는 앱 이름 (Life Hub src/destinations.js 의 app 이름과 같게)
   appNames: {
-    board: '보드', hub: 'Life Hub', animan: 'AniMan', letterbookxd: '책장', potcast: 'potcast', elosorter: 'ELO Sorter',
+    board: '보드', hub: 'Life Hub', memo: 'Claude 메모', animan: 'AniMan', letterbookxd: '책장', potcast: 'potcast', elosorter: 'ELO Sorter',
     achievement: '업적 라이브러리', sub: '역 도장깨기', kyeokyeoi: '켜켜이', food: 'PALATE', diaryroulette: '일기 룰렛',
   },
 });
