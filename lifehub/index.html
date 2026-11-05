@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Life Board · Life Hub</title>
+</head>
+<body>
+<p>Life Hub 연결을 마무리하는 중…</p>
+<script>
+  // Life Hub 가 여기로 돌려보낸다. 한 번 쓰는 결과를 이 탭의 sessionStorage 에 넘기고, 주소에서 지운 뒤 보드를 연다.
+  // 보드(js/hub.js)가 state 를 확인하고 토큰을 받는다.
+  try { sessionStorage.setItem('board.lifehub.callback.v1', location.search); } catch (e) { /* 보드가 알린다 */ }
+  location.replace(new URL('../', location.href).href);
+</script>
+</body>
+</html>

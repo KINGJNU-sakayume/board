@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https://kingjnu-sakayume.github.io https://image.aladin.co.kr https://upload.wikimedia.org; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://www.thesportsdb.com; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https://kingjnu-sakayume.github.io https://image.aladin.co.kr https://upload.wikimedia.org; connect-src 'self' https://life-hub-api.213303.workers.dev https://api.open-meteo.com https://geocoding-api.open-meteo.com https://www.thesportsdb.com; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
 <title>Life Board</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='6' height='6' rx='1.5' fill='%23888'/%3E%3Crect x='9' y='1' width='6' height='6' rx='1.5' fill='%23888'/%3E%3Crect x='1' y='9' width='14' height='6' rx='1.5' fill='%23888'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/board.css">
@@ -40,7 +40,7 @@
 <dialog id="addDlg" aria-labelledby="addT">
   <div class="hd"><h2 id="addT">위젯 추가</h2><button class="act soft" type="button" id="closeAdd">닫기</button></div>
   <div id="addList" class="mt6"></div>
-  <div class="dfoot"><button class="act quiet" type="button" id="resetLayout">기본 배치로 되돌리기</button></div>
+  <div class="dfoot"><button class="act quiet" type="button" id="resetLayout">기본 배치로 되돌리기</button><button class="act quiet" type="button" id="disconnectBtn" hidden>Life Hub 연결 해제</button></div>
 </dialog>
 </body>
 </html>

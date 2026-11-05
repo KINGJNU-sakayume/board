@@ -13,6 +13,6 @@
 | kyeokyeoi | [kyeokyeoi.md](kyeokyeoi.md) | 켜켜이 보드 타일 고르기 + 만드는 함수 + README |
 | food | [food.md](food.md) | PALATE 보드 타일 고르기 + 만드는 함수 + README |
 | 일기 룰렛 저장소 | [diaryroulette.md](diaryroulette.md) | 일기 룰렛 보드 타일 고르기 + 만드는 함수 + README |
-| life-hub | [life-hub.md](life-hub.md) | 보드 API 설계 문서(P7) 갱신 |
+| life-hub | [life-hub.md](life-hub.md) | 보드 API 설계 문서(P7) 갱신 — **완료** |
 
 프롬프트를 고치려면 `scripts/make-prompts.py`를 고치고 `python3 scripts/make-prompts.py`로 다시 만듭니다.
