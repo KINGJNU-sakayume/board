@@ -114,7 +114,11 @@ function plate(def, ctx) {
   return [h('div', { class: 'sb' }, kids)];
 }
 
-/** 룰렛: 대기 → 돌리는 중 → 뽑힘. 결과는 기록이 아니라 '제안'이고, 제안은 Hub 연결이 있어야 보낸다(없으면 닫힘). */
+/**
+ * 룰렛: 대기 → 돌리는 중 → 뽑힘 → (제안 보내기) 보냄. 결과는 기록이 아니라 '제안'이다.
+ * 보내기는 Life Hub 에 연결돼 있을 때만 열린다(ctx.canPropose). 멱등 키는 뽑힐 때 한 번 만들고, 실패해서
+ * 다시 보낼 때도 같은 키를 쓴다(Hub 가 같은 제안으로 알아본다). Hub 는 역 도장깨기가 지금 뽑을 수 있는 역만 받는다.
+ */
 function roulette(r, ctx) {
   const name = h('span', { class: 'name', text: r.candidates[0] });
   const note = h('span', { class: 'sub' });
@@ -122,20 +126,28 @@ function roulette(r, ctx) {
   const send = h('button', { class: 'act', type: 'button', text: '제안 보내기' });
   const again = h('button', { class: 'act quiet', type: 'button', text: '다시 뽑기' });
   const box = h('div', { class: 'roulette', 'aria-live': 'polite' }, h('span', { class: 'sub lead', text: '다음에 갈 곳을 뽑아 볼까요?' }), name, note, h('div', { class: 'flex ac' }, spin, send, again));
-  let timer = null;
-  const state = (s) => {
+  let timer = null, key = null;
+  const newKey = () => 'board-draw-' + Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
+  const state = (s, message) => {
     box.dataset.rs = s;
-    name.hidden = s === 'idle'; spin.hidden = s !== 'idle'; again.hidden = s !== 'done'; send.hidden = s !== 'done';
-    send.disabled = !ctx.canPropose;
-    note.textContent = s === 'done' ? (ctx.canPropose ? '제안을 보내면 앱에서 승인한 뒤에 기록돼요' : 'Hub에 연결되면 여기서 제안을 보낼 수 있어요') : '';
-    box.querySelector('.lead').textContent = s === 'idle' ? '다음에 갈 곳을 뽑아 볼까요?' : s === 'spinning' ? '돌리는 중…' : '뽑힌 곳';
+    name.hidden = s === 'idle'; spin.hidden = s !== 'idle'; again.hidden = !(s === 'done' || s === 'sent'); send.hidden = !(s === 'done' || s === 'sending');
+    send.disabled = s === 'sending' || !ctx.canPropose;
+    send.textContent = s === 'sending' ? '보내는 중…' : '제안 보내기';
+    note.textContent = message ?? (s === 'done' ? (ctx.canPropose ? '제안을 보내면 역 도장깨기에서 승인한 뒤에 목적지가 돼요' : 'Life Hub에 연결되면 여기서 제안을 보낼 수 있어요')
+      : s === 'sent' ? '제안했어요 · 역 도장깨기에서 승인하면 목적지가 돼요' : '');
+    box.querySelector('.lead').textContent = s === 'idle' ? '다음에 갈 곳을 뽑아 볼까요?' : s === 'spinning' ? '돌리는 중…' : s === 'sent' ? '제안함' : '뽑힌 곳';
   };
   spin.addEventListener('click', () => {
     let n = 0; state('spinning');
-    timer = setInterval(() => { name.textContent = r.candidates[Math.floor(Math.random() * r.candidates.length)]; if (++n >= 16) { clearInterval(timer); state('done'); } }, 100);
+    timer = setInterval(() => { name.textContent = r.candidates[Math.floor(Math.random() * r.candidates.length)]; if (++n >= 16) { clearInterval(timer); key = newKey(); state('done'); } }, 100);
   });
   again.addEventListener('click', () => state('idle'));
-  send.addEventListener('click', () => { if (ctx.canPropose) ctx.propose && ctx.propose(name.textContent); });
+  send.addEventListener('click', async () => {
+    if (!ctx.canPropose || !ctx.propose || !key) return;
+    state('sending');
+    try { await ctx.propose(name.textContent, key); state('sent'); }
+    catch (e) { state('done', (e && e.message) || '제안을 보내지 못했어요. 다시 눌러 주세요.'); }
+  });
   state('idle');
   return box;
 }

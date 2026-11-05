@@ -9,7 +9,7 @@ import { applyAccent } from './accent.js';
 import { setupFaces } from './faces.js';
 import { initLayoutSync } from './layoutsync.js';
 import { syncMemos } from './memos.js';
-import { connectAvailable, isConnected, beginConnect, completeStoredCallback, fetchTiles, disconnect, HubError } from './hub.js';
+import { connectAvailable, isConnected, beginConnect, completeStoredCallback, fetchTiles, disconnect, HubError, proposeStationDraw } from './hub.js';
 
 const $ = (s, r) => (r || document).querySelector(s);
 const policy = { imageOrigins: CONFIG.imageOrigins, linkOrigins: CONFIG.linkOrigins };
@@ -29,7 +29,12 @@ for (const g of CONFIG.groups) {
 /* ---------- 타일 그리기 ---------- */
 const appName = (def) => CONFIG.appNames[def.__app] || def.__app;
 const ctx = {
-  canPropose: false,                  // Hub 보드 API(제안 보내기)가 생기기 전까지는 닫혀 있다
+  // 룰렛 제안은 Life Hub 에 연결돼 실제 타일을 보고 있을 때만 (예시 데이터의 룰렛으로는 보내지 않는다)
+  get canPropose() { return hub.mode === 'hub' && isConnected(); },
+  propose: async (station, key) => {
+    try { return await proposeStationDraw(station, key); }
+    catch (e) { if (e instanceof HubError && e.kind === 'no_propose_scope') { hub.noPropose = true; showStatus(); } throw e; }
+  },
   appName,
   action(def) {
     if (def.__widget) return { kind: 'button', run: () => openSettings(def.__widget) };
@@ -232,10 +237,11 @@ function showStatus() {
   const ms = hub.mode === 'hub' ? memo.status : 'off';
   if (ls === 'no_scope') parts.splice(1, 0, '배치 동기화 권한 없음');
   else if (ms === 'no_scope') parts.splice(1, 0, '메모 권한 없음');
+  else if (hub.mode === 'hub' && hub.noPropose) parts.splice(1, 0, '룰렛 제안 권한 없음');
   if (ls === 'error') parts.splice(1, 0, '배치 동기화 실패');
   kids[0].textContent = parts.join(' · ');
   // 연결 동작은 상태 줄의 글자 단추 하나뿐이다(상시 버튼을 늘리지 않음). 실제 주소에서 열렸을 때만.
-  if (connectAvailable() && (hub.mode === 'sample' || hub.mode === 'lost' || ls === 'no_scope' || ms === 'no_scope')) {
+  if (connectAvailable() && (hub.mode === 'sample' || hub.mode === 'lost' || ls === 'no_scope' || ms === 'no_scope' || (hub.mode === 'hub' && hub.noPropose))) {
     kids.push(document.createTextNode(' · '), h('button', { class: 'slink', type: 'button', text: hub.mode === 'sample' ? 'Life Hub에 연결' : '다시 연결', onclick: connectHub }));
   }
   statusEl.replaceChildren(...kids);

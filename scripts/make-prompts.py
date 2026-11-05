@@ -27,7 +27,7 @@ APPS = [
 - 업적 정의 후보(Hub 제안)와 승인된 업적을 구분해, 보드에는 **승인되어 앱에 저장된 것만** 보냅니다."""),
   ("sub", "sub", "역 도장깨기", "역 도장깨기 (`sub`)", """## 이 앱에서 특히 볼 것
 - `station` 타일의 룰렛 후보(`roulette.candidates`)는 앱이 Hub에 공유하는 '지금 뽑을 수 있는 역(pool)'과 같은 기준으로, 최대 50개입니다. 50개보다 많으면 어떻게 고를지(무작위, 노선 등) 정해 표에 적어 주세요.
-- 룰렛 결과는 기록이 아니라 '제안'입니다. 보드는 Life Hub의 제안 API(P7 B5)가 생기기 전까지 제안 보내기를 잠가 둡니다. 이 저장소에서 보드의 룰렛을 위해 할 일은 후보 목록을 보내는 것뿐입니다.
+- 룰렛 결과는 기록이 아니라 '제안'입니다. 보드가 보낸 제안은 수신함에 **출처 `board`**(키 `board:<…>`)의 `station_draw`로 들어옵니다(life-hub P7 B5). Hub는 이 앱이 공유한 pool에 있는 역만 받으므로 룰렛 후보는 pool에서 고릅니다.\n- **이 앱이 수신함에서 출처 `board`를 받아들이는지 꼭 확인해 주세요.** 키나 출처를 `claude|chatgpt|codex|manual` 같은 목록으로 검사한다면 `board`를 더하고(단, `board`는 `station_draw`만), Claude가 뽑은 것과 똑같이 승인 흐름을 타게 합니다. 화면에는 '보드 룰렛에서 뽑음' 정도로 출처를 보여 주면 좋습니다.
 - 역 이름은 12자 이내(`plate.name`)입니다. 넘는 역 이름이 있는지 확인해 주세요."""),
   ("kyeokyeoi", "kyeokyeoi", "켜켜이", "켜켜이 (`kyeokyeoi`)", """## 이 앱에서 특히 볼 것
 - `regions`(map) 타일의 격자 배치(`cols`, 빈칸 `none`)는 앱이 정합니다. 앱의 지역 목록(Hub에 공유하는 `regions` 참조)으로 시도 격자를 만들 수 있는지 확인하고, 배치 표를 코드 상수로 두세요.
@@ -70,10 +70,18 @@ TPL = """# {appname} 저장소 프롬프트 — 보드 타일
 5. 테스트:
    - 예시 출력이 규격 v1을 통과하는지. board 저장소의 `js/schema.js`를 테스트용으로 복사해 `validateManifest`로 검사하고, 복사한 파일 맨 위에 출처 커밋과 날짜를 주석으로 남깁니다.
    - 빈 상태, `sizes`/`size`, id 고정, 길이 자르기.
-6. README에 「보드 타일」 절을 추가합니다: 어떤 타일을 왜 보내는지, 크기, 기본 여부, 데이터 출처, 그리고 **아직 Hub로 보내지 않는다**는 점.
+6. **Life Hub에 올리기** (Hub 쪽 API는 배포돼 있습니다: life-hub `docs/P7_BOARD.md` 5장)
+   - 요청: `PUT https://life-hub-api.213303.workers.dev{path}/v1/board`, 헤더 `Authorization: Bearer <이 앱의 기존 Life Hub 토큰>`, `Content-Type: application/json`, 본문은 위 함수가 만든 manifest(`generated_at`은 올리는 순간의 시각).
+   - 권한: 스코프 `{app}:board`. 이 앱이 이미 쓰는 Life Hub 연결(토큰 갱신·해제 코드)을 그대로 쓰고, 연결할 때 요청하는 scope 문자열에도 `{app}:board`를 더합니다. **이 권한 전에 연결한 기기**는 업로드가 `403` + `WWW-Authenticate: ... error="insufficient_scope"`로 옵니다. 이때 **토큰을 지우지 말고**(수신함·동기화는 계속 돼야 함) "보드에 올리려면 Life Hub에 다시 연결" 안내만 띄웁니다. 다른 401/403은 기존 연결 코드의 규칙을 따릅니다.
+   - 응답: `200`이면 저장(`{{ unchanged: true }}`는 같은 내용, `{{ ignored: true }}`는 더 새 목록이 이미 있음 — 둘 다 성공으로 칩니다). `400`·`413`은 이 앱 쪽 버그이니 같은 내용으로 다시 보내지 말고 개발자 콘솔에만 남깁니다. 네트워크 오류·`5xx`는 다음 기회에 다시.
+   - 빈도: 타일에 영향을 주는 변화가 있을 때 **10분에 한 번 이하**로 모아서, 마지막으로 성공한 본문의 sha256(`generated_at` 빼고 계산)과 다를 때만. 앱을 열 때 마지막 성공이 하루보다 오래됐으면 한 번. Life Hub에 연결돼 있지 않으면 아무것도 하지 않습니다.
+   - 마지막 성공 sha·시각은 localStorage에 둡니다(개인 데이터 아님). 업로드 실패가 앱의 다른 기능을 막지 않게 합니다.
+   - 테스트: 가짜 fetch로 저장·unchanged·ignored·insufficient_scope(토큰 유지)·400(재시도 안 함)·디바운스·sha 같으면 안 보냄.
+7. README에 「보드 타일」 절을 추가합니다: 어떤 타일을 왜 보내는지, 크기, 기본 여부, 데이터 출처, 언제 올리는지, 다시 연결이 필요한 경우.
 
 ## 하지 말 것
-- Life Hub로 올리는 코드. Hub의 업로드 API(`PUT <앱 경로>/v1/board`)는 있지만, 연결은 이 작업이 끝난 뒤 따로 맡깁니다. 이번에는 함수와 예시 출력까지만 만듭니다.
+- Hub에 이 앱의 기록 자체를 올리기. 올리는 것은 보드용 목록(manifest)뿐입니다.
+- 업로드 실패를 이유로 Life Hub 토큰을 지우기(위 insufficient_scope 규칙).
 - 보드 화면 코드나 CSS를 이 저장소에 만들기. 모양은 보드가 정하고, 이 저장소는 데이터만 만듭니다.
 - 새 색·테마색 정하기(포인트색은 표지에서), HTML 조각 보내기.
 - board 저장소나 다른 저장소 고치기.
@@ -83,6 +91,7 @@ TPL = """# {appname} 저장소 프롬프트 — 보드 타일
 ## 끝나면 알려 줄 것
 - 고른 타일 표(id, 이름, 톤·형태, 크기, 기본, 데이터 출처)
 - 예시 출력 JSON 경로와 규격 검사 결과
+- 업로드 연결 방식(언제 올리는지)과 테스트 결과, 배포 후 다시 연결이 필요한지
 - 이 저장소의 기존 검사(테스트·빌드) 결과
 - board 쪽에 요청할 것(허용 출처 추가, 규격에 없는 필드가 필요한 경우 등)
 """
@@ -131,13 +140,14 @@ Life Board(https://github.com/KINGJNU-sakayume/board)가 앱 타일을 실제 �
 """
 
 ROOT.mkdir(parents=True, exist_ok=True)
+PATHS = {"food": "/palate"}   # Life Hub 목적지 경로 (life-hub src/destinations.js 의 path)
 for app, repo, name, section, extra in APPS:
-    (ROOT / f"{app}.md").write_text(TPL.format(app=app, repo=repo, appname=name, section=section, extra=extra, B=B), encoding="utf-8")
+    (ROOT / f"{app}.md").write_text(TPL.format(app=app, repo=repo, appname=name, section=section, extra=extra, B=B, path=PATHS.get(app, "/" + app)), encoding="utf-8")
 (ROOT / "life-hub.md").write_text(LIFEHUB.format(B=B), encoding="utf-8")
 idx = ["# 저장소별 프롬프트", "", "각 파일의 구분선 아래를 해당 저장소 작업 세션에 그대로 붙여 넣습니다. 앱 프롬프트는 같은 틀이고, 「이 앱에서 특히 볼 것」만 다릅니다.", "",
        "| 저장소 | 파일 | 하는 일 |", "|---|---|---|"]
 for app, repo, name, section, extra in APPS:
-    idx.append(f"| {repo} | [{app}.md]({app}.md) | {name} 보드 타일 고르기 + 만드는 함수 + README |")
+    idx.append(f"| {repo} | [{app}.md]({app}.md) | {name} 보드 타일 고르기 + 만드는 함수 + Hub 업로드 + README |")
 idx.append("| life-hub | [life-hub.md](life-hub.md) | 보드 API 설계 문서(P7) 갱신 — **완료** |")
 idx += ["", "프롬프트를 고치려면 `scripts/make-prompts.py`를 고치고 `python3 scripts/make-prompts.py`로 다시 만듭니다."]
 (ROOT / "README.md").write_text("\n".join(idx) + "\n", encoding="utf-8")
