@@ -18,7 +18,7 @@
 3. 고른 타일로:
    - 앱 상태에서 manifest(v1)를 만드는 **순수 함수**(예: `buildBoardTiles(state, now)`)를 추가합니다. 네트워크·저장소 접근 없이 입력만으로 결과가 정해지게 하고, 무작위를 쓰지 않습니다(같은 입력이면 같은 출력이어야 중복 전송 방지가 동작합니다).
    - 타일 `id`는 후보 표의 id를 쓰고, 한 번 정하면 바꾸지 않습니다(사용자 배치가 id로 저장됩니다).
-   - **표지**: 이미지는 **주소만** 넣습니다(`data:` 이미지는 Hub가 목록째 거절). 주소는 board 허용 출처 안이어야 합니다(현재 `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`). 공개 주소가 없거나 허용 출처 밖이면 `src`를 빼고 `cover: {mono: '첫 글자'}`로 글자 칸을 보냅니다. **sleeve·hero는 `cover` 자체를 빼면 타일이 거절되니 빼지 않습니다.** strip 항목과 행 썸네일은 `cover`를 빼도 됩니다. 필요한 출처는 저에게 알려 주세요.
+   - **표지**: 이미지는 **주소만** 넣습니다(`data:` 이미지는 Hub가 목록째 거절). 주소는 board 허용 출처 안이어야 합니다(현재 `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`, `https://i.scdn.co`). 공개 주소가 없거나 허용 출처 밖이면 `src`를 빼고 `cover: {mono: '첫 글자'}`로 글자 칸을 보냅니다. **sleeve·hero는 `cover` 자체를 빼면 타일이 거절되니 빼지 않습니다.** strip 항목과 행 썸네일은 `cover`를 빼도 됩니다. 필요한 출처는 저에게 알려 주세요.
    - 표지가 있으면 `accent {h, s}`를 함께 보냅니다(새 색을 정하지 않습니다).
    - `href`는 이 앱의 GitHub Pages 주소(`https://kingjnu-sakayume.github.io/...`)만 씁니다. 목록 전체는 UTF-8로 64 KiB 이하.
    - **글자 길이**: board `js/schema.js`의 최대 길이를 기준으로 함수 안에서 자릅니다. 짧아서 잘 걸리는 것: `mono` 2, 지도 칸 이름 6, `unit` 8, `foot`의 `k`·`v` 10, `plate.name`·룰렛 후보 12, 큰 숫자 `value` 12, `pill` 20, 행 `value` 24, 타일 `name` 30, 라벨 80, 긴 문장 160. 글자 수는 JavaScript `.length`로 셉니다.
@@ -52,7 +52,7 @@
 ## 이 앱에서 특히 볼 것
 - 이 저장소 AGENTS.md는 요청 없이 화면을 바꾸지 말라고 합니다. 이 프롬프트가 그 명시적 요청입니다: 보드 업로드의 '다시 연결' 안내와 '이 기기에서 보드에 올리기' 설정은 화면에 더해도 됩니다. 재생 동작과 기존 번역·노트는 바꾸지 마세요.
 - `now`(지금 듣는 앨범)는 미디어 그룹의 `hero`입니다. 그룹마다 hero는 하나라서, 이 앱의 다른 타일은 hero로 만들지 마세요.
-- 앨범 표지는 Spotify(`https://i.scdn.co`)에서 와서 지금 허용 출처 밖입니다. 그대로면 hero가 글자 칸이 되니 board 쪽 요청 목록 맨 위에 적어 주세요. 그 전까지는 `cover: {mono}`로 보냅니다.
+- 앨범 표지는 Spotify(`https://i.scdn.co`)에서 오고, 이 출처는 board 허용 목록에 있습니다. 표지 주소가 없는 앨범만 `cover: {mono}`로 보냅니다.
 - 트랙 진행(`트랙 6 / 14`)과 들은 횟수는 앱이 실제로 세는 값만 씁니다(청취 기록 `ListenEvent` 등). 세지 않는 값을 추정해 넣지 마세요.
 
 ## 끝나면 알려 줄 것

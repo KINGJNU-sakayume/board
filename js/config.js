@@ -14,6 +14,7 @@ export const CONFIG = Object.freeze({
     'https://kingjnu-sakayume.github.io',
     'https://image.aladin.co.kr',
     'https://upload.wikimedia.org',
+    'https://i.scdn.co',              // Spotify 앨범 표지 (potcast, ELO Sorter)
   ],
 
   // 타일을 눌렀을 때 여는 앱 주소는 이 출처만 허용한다.

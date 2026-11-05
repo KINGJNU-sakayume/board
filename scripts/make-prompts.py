@@ -23,18 +23,19 @@ APPS = [
 - `now` 타일의 뒷면 목록(`list`)과 상세(`detail`)는 같은 "최근 정주행" 데이터를 다른 개수로 씁니다(뒷면 3~5, 상세 5)."""),
   dict(app="letterbookxd", repo="letterbookxd", name="책장", section="책장 (`letterbookxd`)", hubfile="src/lifehub/remote.ts", kind="sync", extra="""\
 - 표지는 알라딘(image.aladin.co.kr)·위키미디어면 허용 출처 안입니다. 몇몇 책은 다른 출처(namu.wiki, nl.go.kr 등)라 글자 칸이 됩니다. 몇 권인지 표에 적어 주세요.
+- 알라딘 Open API는 2026-10-30에 종료됐습니다. 이미 저장된 image.aladin.co.kr 주소가 계속 열린다는 보장은 없으니, 표지가 안 열리면 글자 칸으로 넘어가는지(보드가 처리) 정도만 확인하고 표지 출처를 바꾸는 작업은 따로 합니다.
 - 판본(`editions`)의 권 정보로 `series`(칸 채우기) 타일을 만들 수 있는지 확인해 주세요.
 - 이 앱에는 밑줄·인용 기능이 없으니 후보의 `quote`는 빼 주세요.
 - 독서 기록은 Hub와 sync 문서로 오갑니다(`letterbookxd:sync`). 보드 타일 함수는 sync 코드와 섞지 마세요."""),
   dict(app="potcast", repo="potcast", name="potcast", section="potcast (`potcast`)", hubfile="src/lifehub/remote.ts", kind="device", extra="""\
 - 이 저장소 AGENTS.md는 요청 없이 화면을 바꾸지 말라고 합니다. 이 프롬프트가 그 명시적 요청입니다: 보드 업로드의 '다시 연결' 안내와 '이 기기에서 보드에 올리기' 설정은 화면에 더해도 됩니다. 재생 동작과 기존 번역·노트는 바꾸지 마세요.
 - `now`(지금 듣는 앨범)는 미디어 그룹의 `hero`입니다. 그룹마다 hero는 하나라서, 이 앱의 다른 타일은 hero로 만들지 마세요.
-- 앨범 표지는 Spotify(`https://i.scdn.co`)에서 와서 지금 허용 출처 밖입니다. 그대로면 hero가 글자 칸이 되니 board 쪽 요청 목록 맨 위에 적어 주세요. 그 전까지는 `cover: {mono}`로 보냅니다.
+- 앨범 표지는 Spotify(`https://i.scdn.co`)에서 오고, 이 출처는 board 허용 목록에 있습니다. 표지 주소가 없는 앨범만 `cover: {mono}`로 보냅니다.
 - 트랙 진행(`트랙 6 / 14`)과 들은 횟수는 앱이 실제로 세는 값만 씁니다(청취 기록 `ListenEvent` 등). 세지 않는 값을 추정해 넣지 마세요."""),
   dict(app="elosorter", repo="elosorter", name="ELO Sorter", section="ELO Sorter (`elosorter`)", hubfile="src/services/lifehub/remote.ts", kind="sync", extra="""\
 - 이 앱은 Hub에 수신함 없이 sync만 하는 목적지입니다. 지금 연결 scope는 `elosorter:sync` 하나입니다. 순위는 기기 안 세션 상태에서 계산하고, sync 코드와 섞지 마세요.
 - 순위 변동(`trend`)은 직전 비교 전후 순위를 앱이 실제로 알 때만 넣습니다. 세션의 비교 기록(`Match`)으로 직전 순위를 다시 계산할 수 있는지 확인하고, 못 하면 빼세요.
-- 곡 표지는 Spotify(`https://i.scdn.co`)라 지금 허용 출처 밖입니다. 행 썸네일(`cover`)은 선택이니 빼고 보내고, board 쪽 요청 목록에 적어 주세요."""),
+- 곡 표지는 Spotify(`https://i.scdn.co`)이고 board 허용 목록에 있습니다. 행 썸네일(`cover`)로 보낼 수 있습니다."""),
   dict(app="achievement", repo="achievement", name="업적 라이브러리", section="업적 라이브러리 (`achievement`)", hubfile="src/lifehub/remote.js", kind="device", extra="""\
 - 활동 기록(운동 등)과 업적이 한 앱에 있습니다. `activity` 타일은 활동 기록 중 가장 최근 하나만 보여줍니다.
 - 트로피 칸(`trophy`)은 카테고리 하나를 고르는 규칙이 필요합니다(가장 최근 취득한 카테고리 등). 규칙을 표에 적어 주세요. 카테고리당 업적은 지금 최대 43개라 칸(최대 60) 안에 들어갑니다.
@@ -89,7 +90,7 @@ TPL = """# {name} 저장소 프롬프트 — 보드 타일
 3. 고른 타일로:
    - 앱 상태에서 manifest(v1)를 만드는 **순수 함수**(예: `buildBoardTiles(state, now)`)를 추가합니다. 네트워크·저장소 접근 없이 입력만으로 결과가 정해지게 하고, 무작위를 쓰지 않습니다(같은 입력이면 같은 출력이어야 중복 전송 방지가 동작합니다).
    - 타일 `id`는 후보 표의 id를 쓰고, 한 번 정하면 바꾸지 않습니다(사용자 배치가 id로 저장됩니다).
-   - **표지**: 이미지는 **주소만** 넣습니다(`data:` 이미지는 Hub가 목록째 거절). 주소는 board 허용 출처 안이어야 합니다(현재 `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`). 공개 주소가 없거나 허용 출처 밖이면 `src`를 빼고 `cover: {{mono: '첫 글자'}}`로 글자 칸을 보냅니다. **sleeve·hero는 `cover` 자체를 빼면 타일이 거절되니 빼지 않습니다.** strip 항목과 행 썸네일은 `cover`를 빼도 됩니다. 필요한 출처는 저에게 알려 주세요.
+   - **표지**: 이미지는 **주소만** 넣습니다(`data:` 이미지는 Hub가 목록째 거절). 주소는 board 허용 출처 안이어야 합니다(현재 `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`, `https://i.scdn.co`). 공개 주소가 없거나 허용 출처 밖이면 `src`를 빼고 `cover: {{mono: '첫 글자'}}`로 글자 칸을 보냅니다. **sleeve·hero는 `cover` 자체를 빼면 타일이 거절되니 빼지 않습니다.** strip 항목과 행 썸네일은 `cover`를 빼도 됩니다. 필요한 출처는 저에게 알려 주세요.
    - 표지가 있으면 `accent {{h, s}}`를 함께 보냅니다(새 색을 정하지 않습니다).
    - `href`는 이 앱의 GitHub Pages 주소(`https://kingjnu-sakayume.github.io/...`)만 씁니다. 목록 전체는 UTF-8로 64 KiB 이하.
    - **글자 길이**: board `js/schema.js`의 최대 길이를 기준으로 함수 안에서 자릅니다. 짧아서 잘 걸리는 것: `mono` 2, 지도 칸 이름 6, `unit` 8, `foot`의 `k`·`v` 10, `plate.name`·룰렛 후보 12, 큰 숫자 `value` 12, `pill` 20, 행 `value` 24, 타일 `name` 30, 라벨 80, 긴 문장 160. 글자 수는 JavaScript `.length`로 셉니다.
