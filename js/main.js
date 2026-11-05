@@ -8,6 +8,7 @@ import { WIDGETS, widgetDef, settingsOf, saveSettings } from './widgets.js';
 import { applyAccent } from './accent.js';
 import { setupFaces } from './faces.js';
 import { initLayoutSync } from './layoutsync.js';
+import { syncMemos } from './memos.js';
 import { connectAvailable, isConnected, beginConnect, completeStoredCallback, fetchTiles, disconnect, HubError } from './hub.js';
 
 const $ = (s, r) => (r || document).querySelector(s);
@@ -132,6 +133,7 @@ async function loadApps(first) {
     }
     return;
   }
+  sync('memo', [], first);   // 메모 타일은 Life Hub 에 연결돼 있을 때만
   if (hub.lost) { applyManifests([], first, true); return; }
   hub.mode = 'sample';
   let pack;
@@ -195,6 +197,30 @@ function openSettings(w) {
 }
 
 /* ---------- 상태 줄 · 새로고침 ---------- */
+/* ---------- Claude 메모 (승인된 것만, life-hub docs/P7_BOARD.md 7장) ---------- */
+const memo = { status: 'off', message: '' };   // off | ok | no_scope | error
+async function refreshMemos() {
+  if (!layout || layout.state.status !== 'ok') return;   // 문서를 맞출 수 없으면 메모도 저장할 곳이 없다
+  try { await syncMemos(layout); Object.assign(memo, { status: 'ok', message: '' }); }
+  catch (e) {
+    const kind = e instanceof HubError ? e.kind : 'server';
+    Object.assign(memo, { status: kind === 'no_inbox_scope' ? 'no_scope' : kind === 'not_connected' ? 'off' : 'error', message: e.message || '' });
+  }
+}
+const md = (iso) => { const d = new Date(iso); return `${d.getMonth() + 1}월 ${d.getDate()}일`; };
+const cut = (t, n) => (t.length > n ? t.slice(0, n - 1) + '…' : t);
+function showMemos(memos) {
+  if (hub.mode !== 'hub' || !memos.length) { sync('memo', [], false); return; }
+  const m = memos[0];
+  const raw = {
+    id: 'latest', name: 'Claude 메모', tone: 'type', form: 'line', sizes: ['2x1', '4x1'], size: '2x1',
+    data: { label: `Claude 메모 · 승인됨 · ${md(m.approved_at)}`, title: m.text },
+    ...(memos.length > 1 ? { detail: { title: '승인한 Claude 메모', rows: memos.slice(0, 12).map((x) => ({ title: cut(x.text, 80), sub: md(x.approved_at) })) } } : {}),
+  };
+  try { sync('memo', [validateTile(raw, 'memo', policy)], false); } catch (e) { problems.push('메모 타일: ' + e.message); }
+  if (edit) edit.refreshEmpty();
+}
+
 let lastAt = null;
 const hm = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 function showStatus() {
@@ -203,15 +229,17 @@ function showStatus() {
   const parts = [src, when, problems.length ? `확인할 것 ${problems.length}개` : null, PHONE.matches ? '길게 누르면 편집' : '길게 누르거나 우클릭하면 편집'].filter(Boolean);
   const kids = [document.createTextNode(parts.join(' · '))];
   const ls = layout && hub.mode === 'hub' ? layout.state.status : 'off';
+  const ms = hub.mode === 'hub' ? memo.status : 'off';
   if (ls === 'no_scope') parts.splice(1, 0, '배치 동기화 권한 없음');
+  else if (ms === 'no_scope') parts.splice(1, 0, '메모 권한 없음');
   if (ls === 'error') parts.splice(1, 0, '배치 동기화 실패');
   kids[0].textContent = parts.join(' · ');
   // 연결 동작은 상태 줄의 글자 단추 하나뿐이다(상시 버튼을 늘리지 않음). 실제 주소에서 열렸을 때만.
-  if (connectAvailable() && (hub.mode === 'sample' || hub.mode === 'lost' || ls === 'no_scope')) {
+  if (connectAvailable() && (hub.mode === 'sample' || hub.mode === 'lost' || ls === 'no_scope' || ms === 'no_scope')) {
     kids.push(document.createTextNode(' · '), h('button', { class: 'slink', type: 'button', text: hub.mode === 'sample' ? 'Life Hub에 연결' : '다시 연결', onclick: connectHub }));
   }
   statusEl.replaceChildren(...kids);
-  statusEl.title = [hub.message, layout && layout.state.message, ...problems].filter(Boolean).join('\n');
+  statusEl.title = [hub.message, layout && layout.state.message, memo.message, ...problems].filter(Boolean).join('\n');
   $('#disconnectBtn').hidden = !isConnected();
 }
 async function refresh(first) {
@@ -219,7 +247,7 @@ async function refresh(first) {
   await loadWidgets(first);
   await loadApps(first);
   if (problems.length) console.warn('[board]', problems);
-  if (!first && layout && hub.mode === 'hub' && !edit.isEditing()) await layout.pull();
+  if (!first && layout && hub.mode === 'hub' && !edit.isEditing()) { await layout.pull(); await refreshMemos(); }
   lastAt = new Date(); showStatus();
   if (edit) edit.refreshEmpty();
 }
@@ -243,8 +271,8 @@ $('#disconnectBtn').addEventListener('click', async () => {
   });
   document.querySelectorAll('.w').forEach((t) => edit.attach(t));
   edit.start();
-  layout = initLayoutSync({ snapshot: edit.snapshot, applyRemote: edit.applyRemote, onStatus: () => showStatus() });
-  if (hub.mode === 'hub') { await layout.pull(); showStatus(); }
+  layout = initLayoutSync({ snapshot: edit.snapshot, applyRemote: edit.applyRemote, onStatus: () => showStatus(), onMemos: showMemos });
+  if (hub.mode === 'hub') { await layout.pull(); await refreshMemos(); showStatus(); }
   watch(sc, edge);
   setInterval(() => { if (!document.hidden && !edit.isEditing()) refresh(false); }, CONFIG.refreshMs);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && lastAt && Date.now() - lastAt > CONFIG.refreshMs) refresh(false); });

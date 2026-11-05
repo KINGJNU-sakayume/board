@@ -19,7 +19,7 @@
 
 | id | 타일 | 톤·형태 | 크기 | 기본 | 데이터 |
 |---|---|---|---|---|---|
-| `memo` | Claude 메모 | type·line | **2x1** 4x1 | ✓ | **승인된** Claude 메모만, 자유 글 |
+| `memo` | Claude 메모 | type·line | **2x1** 4x1 | ✓ | **구현됨**(보드가 직접 그림, 타일 id `memo:latest`). Claude가 `propose_board_memo`로 제안 → 대화 카드에서 승인한 것만 → 보드가 문서에 저장(최신 20개, 기기 간 공유) 후 receipt. 가장 최근 메모, 누르면 최근 12개 |
 | `inbox` | 받은 제안 | type·num | **1x1** 2x1 | ✓ | 승인 대기 중인 제안 수 |
 
 ## AniMan (`animan`)
