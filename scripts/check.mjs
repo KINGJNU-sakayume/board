@@ -43,6 +43,17 @@ const imgSrc = (csp.match(/img-src ([^;]+)/) || [])[1] || '';
 for (const o of CONFIG.imageOrigins) ok(imgSrc.split(/\s+/).includes(o), 'CSP img-src 에 ' + o);
 for (const o of ['https://api.open-meteo.com', 'https://geocoding-api.open-meteo.com', 'https://www.thesportsdb.com']) ok(csp.includes(o), 'CSP connect-src 에 ' + o);
 ok(!/style=/.test(html.replace(/<meta[^>]+>/g, '')), 'index.html 에 인라인 style 없음 (CSP style-src self)');
+ok((csp.match(/connect-src ([^;]+)/) || [])[1]?.split(/\s+/).includes(CONFIG.hub.origin), 'CSP connect-src 에 Life Hub ' + CONFIG.hub.origin);
+
+// Life Hub 클라이언트 문서·콜백이 설정과 맞는지 (life-hub 는 정확히 이 redirect URI 로 프로필을 고른다)
+const cimd = JSON.parse(readFileSync('lifehub-client.json', 'utf8'));
+ok(cimd.client_id === CONFIG.hub.appUrl + 'lifehub-client.json', 'lifehub-client.json client_id');
+ok(JSON.stringify(cimd.redirect_uris) === JSON.stringify([CONFIG.hub.appUrl + 'lifehub/']), 'lifehub-client.json redirect_uris');
+ok(cimd.token_endpoint_auth_method === 'none' && cimd.grant_types.includes('refresh_token'), 'lifehub-client.json 공개 클라이언트');
+const hubJs = readFileSync('js/hub.js', 'utf8'), cb = readFileSync('lifehub/index.html', 'utf8');
+const key = (hubJs.match(/CALLBACK_KEY = '([^']+)'/) || [])[1];
+ok(key && cb.includes(`'${key}'`), '콜백 페이지와 js/hub.js 가 같은 sessionStorage 키를 씀');
+ok(readFileSync('.github/workflows/pages.yml', 'utf8').includes('lifehub lifehub-client.json'), 'Pages 배포에 lifehub/ 와 lifehub-client.json 포함');
 
 if (fail) { console.error(`\n${fail}개 실패`); process.exit(1); }
 console.log('\n모두 통과');

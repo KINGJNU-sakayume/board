@@ -33,6 +33,9 @@ img{display:block}
 .top{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:8px 24px;flex-wrap:wrap;min-height:44px}
 .top h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em}
 .status{margin:0;font-size:13px;color:var(--mute)}
+.slink{background:none;border:0;padding:0;min-height:32px;color:var(--ink);font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.staleb{position:absolute;right:10px;top:10px;z-index:3;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:var(--paper-2);color:var(--mute);pointer-events:none}
+.w[data-stale]>:not(.staleb):not(.rm):not(.rz){opacity:.55}
 .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ink);margin-right:6px;vertical-align:middle}
 .editbar{display:none;width:100%;justify-content:space-between;align-items:center}
 .pillbtn{min-height:40px;min-width:44px;padding:0 18px;border:0;border-radius:999px;cursor:pointer;font-weight:600;font-size:16px;

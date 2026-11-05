@@ -7,6 +7,7 @@ import { initEdit } from './edit.js';
 import { WIDGETS, widgetDef, settingsOf, saveSettings } from './widgets.js';
 import { applyAccent } from './accent.js';
 import { setupFaces } from './faces.js';
+import { connectAvailable, isConnected, beginConnect, completeStoredCallback, fetchTiles, disconnect, HubError } from './hub.js';
 
 const $ = (s, r) => (r || document).querySelector(s);
 const policy = { imageOrigins: CONFIG.imageOrigins, linkOrigins: CONFIG.linkOrigins };
@@ -44,6 +45,9 @@ function fill(t, def) {
   applyAccent(t, def);
   if (def.tone === 'sleeve' && def.data.list) setupFaces(t, () => edit && edit.isEditing());
   else t.removeAttribute('data-faces');
+  // Hub 가 받은 지 오래된 앱 목록: 실제 나이를 붙여 '오래됨'으로 표시한다(값을 지우거나 꾸미지 않는다)
+  if (def.__staleDays) t.prepend(h('span', { class: 'staleb', text: `오래됨 · ${def.__staleDays}일 전` }));
+  t.toggleAttribute('data-stale', !!def.__staleDays);
 }
 
 function makeTile(def) {
@@ -89,25 +93,57 @@ async function loadWidgets(first) {
   sync('board', defs, first);
 }
 
-/* ---------- 앱 타일 ---------- */
-async function loadApps(first) {
-  if (CONFIG.hubUrl) {
-    // Hub 보드 API 는 아직 없다(life-hub docs/P7_BOARD.md). 있는 척하지 않고 앱 타일을 비워 둔다.
-    problems.push('Hub 보드 API가 아직 없어 앱 타일을 불러오지 않았어요');
-    return 'hub';
+/* ---------- 앱 타일 ----------
+   연결 전: 예시 데이터. 연결 후: Life Hub 의 /board/v1/tiles.
+   연결이 끊기면(토큰 거부) 앱 타일을 비운다. 실제 연결을 쓰던 화면에 지어낸 예시를 다시 보여주지 않기 위해서다.
+   네트워크가 안 되면 이번 세션에 마지막으로 받은 타일을 그대로 두고 '오프라인'으로 표시한다. */
+const hub = { mode: 'sample', message: '', lastOkAt: null, lost: false };
+const appTiles = new Set();   // 지금 그려진 앱(보드 위젯 제외)
+
+function applyManifests(manifests, first, real) {
+  const present = new Set();
+  for (const m of manifests) {
+    const v = validateManifest(m, policy);
+    v.errors.forEach((er) => problems.push(`${m && m.app}: ${er.id ? er.id + ' — ' : ''}${er.message}`));
+    if (!v.ok || v.app === 'board') continue;
+    let staleDays = 0;
+    if (real && typeof m.received_at === 'string') {
+      const age = (Date.now() - Date.parse(m.received_at)) / 864e5;
+      if (age > CONFIG.staleDays) staleDays = Math.floor(age);
+    }
+    v.tiles.forEach((t) => { t.__staleDays = staleDays; });
+    sync(v.app, v.tiles, first);
+    present.add(v.app);
   }
+  for (const app of appTiles) if (!present.has(app)) sync(app, [], first);
+  appTiles.clear(); present.forEach((a) => appTiles.add(a));
+}
+
+async function loadApps(first) {
+  if (isConnected()) {
+    try {
+      const body = await fetchTiles();
+      applyManifests(body.manifests, first, true);
+      Object.assign(hub, { mode: 'hub', message: '', lastOkAt: new Date(), lost: false });
+    } catch (e) {
+      if (e instanceof HubError && e.kind === 'not_connected') { Object.assign(hub, { mode: 'lost', message: e.message, lost: true }); applyManifests([], first, true); }
+      else Object.assign(hub, { mode: 'offline', message: e.message });
+    }
+    return;
+  }
+  if (hub.lost) { applyManifests([], first, true); return; }
+  hub.mode = 'sample';
   let pack;
   try {
     const r = await fetch('data/sample-tiles.json', { cache: 'no-store' });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     pack = await r.json();
-  } catch (e) { problems.push('예시 데이터를 읽지 못했어요 (' + e.message + ')'); return 'sample'; }
-  for (const m of pack.manifests || []) {
-    const v = validateManifest(m, policy);
-    v.errors.forEach((er) => problems.push(`${m && m.app}: ${er.id ? er.id + ' — ' : ''}${er.message}`));
-    if (v.ok) sync(v.app, v.tiles, first);
-  }
-  return 'sample';
+  } catch (e) { problems.push('예시 데이터를 읽지 못했어요 (' + e.message + ')'); return; }
+  applyManifests(pack.manifests || [], first, false);
+}
+
+async function connectHub() {
+  try { location.assign(await beginConnect()); } catch (e) { hub.message = '연결을 시작하지 못했어요.'; showStatus(); }
 }
 
 /* ---------- 상세 · 설정 대화상자 ---------- */
@@ -158,24 +194,38 @@ function openSettings(w) {
 }
 
 /* ---------- 상태 줄 · 새로고침 ---------- */
-let source = 'sample', lastAt = null;
+let lastAt = null;
+const hm = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 function showStatus() {
-  const t = lastAt ? `${pad2(lastAt.getHours())}:${pad2(lastAt.getMinutes())} 갱신` : '';
-  const src = source === 'sample' ? '예시 데이터' : 'Life Hub';
-  statusEl.textContent = [src, t, problems.length ? `확인할 것 ${problems.length}개` : null, PHONE.matches ? '길게 누르면 편집' : '길게 누르거나 우클릭하면 편집'].filter(Boolean).join(' · ');
-  statusEl.title = problems.join('\n');
+  const src = { sample: '예시 데이터', hub: 'Life Hub', offline: '오프라인', lost: 'Life Hub 연결 끊김' }[hub.mode];
+  const when = hub.mode === 'offline' ? (hub.lastOkAt ? `마지막 ${hm(hub.lastOkAt)}` : '') : lastAt ? `${hm(lastAt)} 갱신` : '';
+  const parts = [src, when, problems.length ? `확인할 것 ${problems.length}개` : null, PHONE.matches ? '길게 누르면 편집' : '길게 누르거나 우클릭하면 편집'].filter(Boolean);
+  const kids = [document.createTextNode(parts.join(' · '))];
+  // 연결 동작은 상태 줄의 글자 단추 하나뿐이다(상시 버튼을 늘리지 않음). 실제 주소에서 열렸을 때만.
+  if (connectAvailable() && (hub.mode === 'sample' || hub.mode === 'lost')) {
+    kids.push(document.createTextNode(' · '), h('button', { class: 'slink', type: 'button', text: hub.mode === 'lost' ? '다시 연결' : 'Life Hub에 연결', onclick: connectHub }));
+  }
+  statusEl.replaceChildren(...kids);
+  statusEl.title = [hub.message, ...problems].filter(Boolean).join('\n');
+  $('#disconnectBtn').hidden = !isConnected();
 }
 async function refresh(first) {
   problems = [];
   await loadWidgets(first);
-  source = await loadApps(first);
+  await loadApps(first);
   if (problems.length) console.warn('[board]', problems);
   lastAt = new Date(); showStatus();
   if (edit) edit.refreshEmpty();
 }
+$('#disconnectBtn').addEventListener('click', async () => {
+  disconnect(); hub.lost = false; hub.message = 'Life Hub 연결을 해제했어요.';
+  $('#addDlg').close(); await refresh(false);
+});
 
 /* ---------- 시작 ---------- */
 (async function start() {
+  try { if (await completeStoredCallback()) hub.message = 'Life Hub에 연결했어요.'; }
+  catch (e) { hub.message = e.message; }
   await refresh(true);
   edit = initEdit({
     page, sc, tray, live, groups: CONFIG.groups, key: 'board.layout.v1',

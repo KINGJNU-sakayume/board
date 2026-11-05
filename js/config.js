@@ -1,7 +1,13 @@
 // 보드 설정. 개인 값(좌표, 팀, 키)은 여기에 적지 않는다. 그런 값은 각 위젯의 '위젯 설정'에서 넣고 이 브라우저에만 저장된다.
 export const CONFIG = Object.freeze({
-  // Life Hub 보드 API 주소. 아직 Hub에 보드 API가 없으므로 비워 둔다. 비어 있으면 예시 데이터(data/sample-tiles.json)를 보여준다.
-  hubUrl: '',
+  // Life Hub (life-hub docs/P7_BOARD.md). 연결 전에는 예시 데이터(data/sample-tiles.json)를 보여주고,
+  // 연결하면 GET /board/v1/tiles 로 앱들이 올린 실제 타일을 읽는다. 바꾸면 index.html CSP connect-src 도 같이.
+  hub: {
+    origin: 'https://life-hub-api.213303.workers.dev',
+    appUrl: 'https://kingjnu-sakayume.github.io/board/',   // 이 주소에서 열렸을 때만 연결할 수 있다(로컬은 예시 모드)
+    scope: 'board:read',
+  },
+  staleDays: 14,   // Hub가 받은 지 이만큼 지난 앱 목록은 '오래됨'으로 표시
 
   // 앱이 보낸 표지 이미지는 이 출처에서만 불러온다. 나머지는 글자 칸으로 바꾼다. data:image/ 는 항상 허용.
   imageOrigins: [

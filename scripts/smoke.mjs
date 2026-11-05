@@ -92,6 +92,55 @@ try {
     await q.close();
   }
 
+  // Life Hub 연결 (가짜 Hub: 네트워크 요청을 가로채 응답한다. 실제 Hub 에는 보내지 않는다)
+  {
+    const HUB = 'https://life-hub-api.213303.workers.dev';
+    const now = Date.now();
+    const man = (app, tiles, receivedDaysAgo = 0) => ({ version: 1, app, generated_at: new Date(now - 6e4).toISOString(), received_at: new Date(now - receivedDaysAgo * 864e5).toISOString(), tiles });
+    const line = (id, title) => ({ id, name: '예시 ' + id, tone: 'type', form: 'line', sizes: ['2x1'], data: { label: '실제 모드 예시', title } });
+    let tilesStatus = 200, tokenCalls = [];
+    const q = await b.newPage({ viewport: { width: 1440, height: 900 } });
+    await q.route(HUB + '/**', async (route) => {
+      const u = new globalThis.URL(route.request().url());
+      if (u.pathname === '/oauth/token') {
+        const body = new URLSearchParams(route.request().postData() || '');
+        tokenCalls.push(body.get('grant_type'));
+        if (body.get('grant_type') === 'refresh_token' && tilesStatus === 401) return route.fulfill({ status: 400, contentType: 'application/json', body: '{"error":"invalid_grant"}' });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: 'at-' + tokenCalls.length, refresh_token: 'rt', token_type: 'bearer', expires_in: 3600, scope: 'board:read' }) });
+      }
+      if (u.pathname === '/board/v1/tiles') {
+        if (tilesStatus !== 200) return route.fulfill({ status: tilesStatus, body: '' });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ generated_at: new Date(now).toISOString(), manifests: [
+          man('animan', [line('now', '실제로 온 타일')]), man('sub', [line('old', '오래된 타일')], 20),
+          { version: 1, app: 'hub', generated_at: new Date(now).toISOString(), tiles: [{ id: 'inbox', name: '받은 제안', tone: 'type', form: 'num', sizes: ['1x1', '2x1'], data: { label: '받은 제안', value: 2, unit: '건' } }] },
+        ] }) });
+      }
+      return route.fulfill({ status: 404, body: '' });
+    });
+    // 콜백에서 돌아온 상황: 이 탭에서 시작한 연결(state 일치) + 콜백 페이지가 남긴 결과
+    await q.addInitScript(() => {
+      if (sessionStorage.getItem('smoke.once')) return; sessionStorage.setItem('smoke.once', '1');
+      sessionStorage.setItem('board.lifehub.pending-auth.v1', JSON.stringify({ state: 'st1', verifier: 'v'.repeat(43), created_at: Date.now() }));
+      sessionStorage.setItem('board.lifehub.callback.v1', '?code=c1&state=st1&iss=' + encodeURIComponent('https://life-hub-api.213303.workers.dev'));
+    });
+    await q.goto(URL); await q.waitForSelector('.w[data-id="animan:now"]');
+    const ids = await q.evaluate(() => [...document.querySelectorAll('.grid > .w')].map((t) => t.dataset.id).filter((id) => !id.startsWith('board:')).sort());
+    ok(tokenCalls[0] === 'authorization_code' && JSON.stringify(ids) === JSON.stringify(['animan:now', 'hub:inbox', 'sub:old']), `연결 마무리 후 실제 타일만: ${ids.join(', ')}`);
+    const st = await q.locator('#status').textContent();
+    ok(/^Life Hub · /.test(st), '상태 줄: ' + st);
+    ok(await q.locator('.w[data-id="sub:old"] .staleb').textContent() === '오래됨 · 20일 전' && !(await q.locator('.w[data-id="animan:now"] .staleb').count()), '오래된 앱 목록에만 오래됨 표시');
+    await q.screenshot({ path: 'shots/hub-connected.png' });
+    // 토큰이 거부되면: 앱 타일을 비우고(예시로 돌아가지 않음) '연결 끊김'
+    tilesStatus = 401;
+    await q.evaluate(() => { const t = JSON.parse(localStorage.getItem('board.lifehub.tokens.v1')); t.access_expires_at = 0; localStorage.setItem('board.lifehub.tokens.v1', JSON.stringify(t)); });
+    await q.reload(); await q.waitForSelector('.w[data-id="board:weather"]'); await q.waitForTimeout(400);
+    const left = await q.evaluate(() => [...document.querySelectorAll('.grid > .w')].map((t) => t.dataset.id).filter((id) => !id.startsWith('board:')));
+    const st2 = await q.locator('#status').textContent();
+    const tokens = await q.evaluate(() => localStorage.getItem('board.lifehub.tokens.v1'));
+    ok(left.length === 0 && /연결 끊김/.test(st2) && tokens === null, `연결 끊김: 앱 타일 ${left.length}개, 토큰 지움, 상태 "${st2}"`);
+    await q.close();
+  }
+
   // 휴대폰
   const ph = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   const perr = []; ph.on('pageerror', (e) => perr.push(e.message));
