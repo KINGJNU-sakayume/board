@@ -101,6 +101,7 @@ try {
     let tilesStatus = 200, tokenCalls = [];
     const sync = { doc: null, version: 0, mode: 'ok', puts: [] };   // 가짜 /board/v1/sync
     const inbox = { approved: [], receipts: [], mode: 'ok' };         // 가짜 /board/v1/candidates, /receipts
+    const proposals = { sent: [], fail: 1 };                          // 가짜 /board/v1/proposals (처음 한 번은 500)
     const q = await b.newPage({ viewport: { width: 1440, height: 900 } });
     await q.route(HUB + '/**', async (route) => {
       const u = new globalThis.URL(route.request().url());
@@ -121,6 +122,11 @@ try {
           return json(200, { version: sync.version });
         }
       }
+      if (u.pathname === '/board/v1/proposals') {
+        const b = JSON.parse(route.request().postData()); proposals.sent.push(b);
+        if (proposals.fail-- > 0) return route.fulfill({ status: 500, body: '' });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidate_id: 'c-1', status: 'pending', duplicate: false, line: '수인분당선', station: b.payload.station }) });
+      }
       if (u.pathname === '/board/v1/candidates' || u.pathname === '/board/v1/receipts') {
         if (inbox.mode === 'no_scope') return route.fulfill({ status: 403, headers: { 'WWW-Authenticate': 'Bearer error="insufficient_scope", scope="board:inbox"', 'Access-Control-Allow-Origin': '*', 'Access-Control-Expose-Headers': 'WWW-Authenticate' }, body: '' });
         if (u.pathname === '/board/v1/candidates') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidates: inbox.approved }) });
@@ -130,7 +136,7 @@ try {
       if (u.pathname === '/board/v1/tiles') {
         if (tilesStatus !== 200) return route.fulfill({ status: tilesStatus, body: '' });
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ generated_at: new Date(now).toISOString(), manifests: [
-          man('animan', [line('now', '실제로 온 타일')]), man('sub', [line('old', '오래된 타일')], 20),
+          man('animan', [line('now', '실제로 온 타일')]), man('sub', [line('old', '오래된 타일'), { id: 'station', name: '역 도장깨기', tone: 'plate', sizes: ['4x2'], data: { label: '역 도장깨기 · 룰렛', name: '서현', roulette: { candidates: ['수서', '판교'] } } }], 20),
           { version: 1, app: 'hub', generated_at: new Date(now).toISOString(), tiles: [{ id: 'inbox', name: '받은 제안', tone: 'type', form: 'num', sizes: ['1x1', '2x1'], data: { label: '받은 제안', value: 2, unit: '건' } }] },
         ] }) });
       }
@@ -144,11 +150,23 @@ try {
     });
     await q.goto(URL); await q.waitForSelector('.w[data-id="animan:now"]');
     const ids = await q.evaluate(() => [...document.querySelectorAll('.grid > .w')].map((t) => t.dataset.id).filter((id) => !id.startsWith('board:')).sort());
-    ok(tokenCalls[0] === 'authorization_code' && JSON.stringify(ids) === JSON.stringify(['animan:now', 'hub:inbox', 'sub:old']), `연결 마무리 후 실제 타일만: ${ids.join(', ')}`);
+    ok(tokenCalls[0] === 'authorization_code' && JSON.stringify(ids) === JSON.stringify(['animan:now', 'hub:inbox', 'sub:old', 'sub:station']), `연결 마무리 후 실제 타일만: ${ids.join(', ')}`);
     const st = await q.locator('#status').textContent();
     ok(/^Life Hub · /.test(st), '상태 줄: ' + st);
     ok(await q.locator('.w[data-id="sub:old"] .staleb').textContent() === '오래됨 · 20일 전' && !(await q.locator('.w[data-id="animan:now"] .staleb').count()), '오래된 앱 목록에만 오래됨 표시');
     await q.screenshot({ path: 'shots/hub-connected.png' });
+    // 룰렛 제안: 뽑고 → 보내기(처음 500) → 같은 키로 다시 → 제안함
+    await q.evaluate(() => { const s = document.getElementById('scroller'); s.scrollLeft = document.getElementById('g-record').offsetLeft - 20; });
+    const rl = q.locator('.w[data-id="sub:station"] .roulette');
+    await rl.locator('button', { hasText: '룰렛 돌리기' }).click(); await q.waitForTimeout(1900);
+    const drawn = await rl.locator('.name').textContent();
+    await rl.locator('button', { hasText: '제안 보내기' }).click(); await q.waitForTimeout(400);
+    const firstNote = await rl.locator('.sub').nth(1).textContent();
+    await rl.locator('button', { hasText: '제안 보내기' }).click(); await q.waitForTimeout(400);
+    const lead = await rl.locator('.lead').textContent();
+    const [p1, p2] = proposals.sent;
+    ok(p1 && p2 && p1.idempotency_key === p2.idempotency_key && /^board-draw-[0-9a-f]{24}$/.test(p1.idempotency_key) && p2.payload.station === drawn && p2.destination === 'sub' && p2.type === 'station_draw' && lead === '제안함' && /다시 눌러/.test(firstNote),
+      `룰렛 제안: ${drawn}, 실패 후 같은 키로 재시도, 상태 "${lead}"`);
     // 배치 동기화: Hub 에 없으면 이 브라우저 배치로 시작(If-None-Match: *)
     await q.waitForTimeout(300);
     ok(sync.version === 1 && sync.puts[0] === 0 && sync.doc.app === 'board' && sync.doc.layout && sync.doc.layout.g, '배치: Hub 에 처음 올림');

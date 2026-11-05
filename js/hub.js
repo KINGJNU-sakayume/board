@@ -151,6 +151,27 @@ export async function inboxRequest(method, path, body) {
   return r;
 }
 
+/**
+ * 룰렛 결과를 역 도장깨기에 제안으로 보낸다 (POST /board/v1/proposals, life-hub docs/P7_BOARD.md 8장).
+ * 성공하면 { candidate_id, status, duplicate, line, station }. 실패하면 사람이 읽을 메시지로 던진다(토큰은 401·403 규칙대로).
+ */
+export async function proposeStationDraw(station, idempotencyKey) {
+  const body = JSON.stringify({ destination: 'sub', type: 'station_draw', idempotency_key: idempotencyKey, payload: { station } });
+  const send = async (token) => {
+    try { return await fetch(HUB + '/board/v1/proposals', { method: 'POST', cache: 'no-store', signal: signal(), headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body }); }
+    catch { throw new HubError('network', 'Life Hub에 연결할 수 없어요. 다시 눌러 주세요.'); }
+  };
+  let r = await send(await accessToken());
+  if (r.status === 401) r = await send(await accessToken(true));
+  if (r.status === 403 && /error="?insufficient_scope"?/i.test(r.headers.get('WWW-Authenticate') ?? ''))
+    throw new HubError('no_propose_scope', '이 연결에는 룰렛 제안 권한이 없어요. 상태 줄의 「다시 연결」을 눌러 주세요.');
+  if (r.status === 401 || r.status === 403) { localStorage.removeItem(TOKENS_KEY); throw new HubError('not_connected', 'Life Hub 연결이 더 이상 유효하지 않아요. 다시 연결해 주세요.'); }
+  const out = await r.json().catch(() => ({}));
+  if (r.status === 409) throw new HubError('server', typeof out.error === 'string' && /[가-힣]/.test(out.error) ? out.error : '이 역은 지금 제안할 수 없어요.');
+  if (!r.ok) throw new HubError('server', `제안을 보내지 못했어요 (${r.status}). 다시 눌러 주세요.`);
+  return out;
+}
+
 /** 연결 해제: 이 브라우저의 토큰을 지우고 Life Hub 에 폐기를 알린다(실패해도 상관없음). */
 export function disconnect() {
   const t = readJson(localStorage, TOKENS_KEY);

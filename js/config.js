@@ -5,7 +5,7 @@ export const CONFIG = Object.freeze({
   hub: {
     origin: 'https://life-hub-api.213303.workers.dev',
     appUrl: 'https://kingjnu-sakayume.github.io/board/',   // 이 주소에서 열렸을 때만 연결할 수 있다(로컬은 예시 모드)
-    scope: 'board:read board:sync board:inbox',
+    scope: 'board:read board:sync board:inbox board:propose',
   },
   staleDays: 14,   // Hub가 받은 지 이만큼 지난 앱 목록은 '오래됨'으로 표시
 
