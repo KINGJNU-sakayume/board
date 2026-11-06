@@ -18,7 +18,8 @@
 3. 고른 타일로:
    - 앱 상태에서 manifest(v1)를 만드는 **순수 함수**(예: `buildBoardTiles(state, now)`)를 추가합니다. 네트워크·저장소 접근 없이 입력만으로 결과가 정해지게 하고, 무작위를 쓰지 않습니다(같은 입력이면 같은 출력이어야 중복 전송 방지가 동작합니다).
    - 타일 `id`는 후보 표의 id를 쓰고, 한 번 정하면 바꾸지 않습니다(사용자 배치가 id로 저장됩니다).
-   - **표지**: 이미지는 **주소만** 넣습니다(`data:` 이미지는 Hub가 목록째 거절). 주소는 board 허용 출처 안이어야 합니다(현재 `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`, `https://i.scdn.co`). 공개 주소가 없거나 허용 출처 밖이면 `src`를 빼고 `cover: {mono: '첫 글자'}`로 글자 칸을 보냅니다. **sleeve·hero는 `cover` 자체를 빼면 타일이 거절되니 빼지 않습니다.** strip 항목과 행 썸네일은 `cover`를 빼도 됩니다. 필요한 출처는 저에게 알려 주세요.
+   - **표지**: 이미지는 **주소만** 넣습니다(`data:` 이미지는 Hub가 목록째 거절). 주소는 board 허용 출처 안이어야 합니다(현재 목록은 board `js/config.js`의 `imageOrigins`: GitHub Pages, 알라딘, 위키미디어, Spotify, Apple Music `is1~5-ssl.mzstatic.com`, TMDB `image.tmdb.org`, 카카오 `t1.daumcdn.net`·`search1.kakaocdn.net`; 정확히 일치해야 함). 공개 주소가 없거나 허용 출처 밖이면 `src`를 빼고 `cover: {mono: '첫 글자'}`로 글자 칸을 보냅니다. **sleeve·hero는 `cover` 자체를 빼면 타일이 거절되니 빼지 않습니다.** strip 항목과 행 썸네일은 `cover`를 빼도 됩니다. 필요한 출처는 저에게 알려 주세요.
+   - **해상도**: 보드 칸은 한 변 최대 170px이고 2배 밀도 화면을 기준으로 합니다. hero(최대 4×2, 폭 약 710px)는 긴 변 1200px 이상, sleeve(2:3)는 400×600 이상, strip·행 썸네일은 300px 정도면 됩니다. 크기를 고를 수 있는 출처는 이 기준에 맞는 가장 작은 크기를 씁니다.
    - 표지가 있으면 `accent {h, s}`를 함께 보냅니다(새 색을 정하지 않습니다).
    - `href`는 이 앱의 GitHub Pages 주소(`https://kingjnu-sakayume.github.io/...`)만 씁니다. 목록 전체는 UTF-8로 64 KiB 이하.
    - **글자 길이**: board `js/schema.js`의 최대 길이를 기준으로 함수 안에서 자릅니다. 짧아서 잘 걸리는 것: `mono` 2, 지도 칸 이름 6, `unit` 8, `foot`의 `k`·`v` 10, `plate.name`·룰렛 후보 12, 큰 숫자 `value` 12, `pill` 20, 행 `value` 24, 타일 `name` 30, 라벨 80, 긴 문장 160. 글자 수는 JavaScript `.length`로 셉니다.
@@ -50,7 +51,7 @@
 - board 저장소나 다른 저장소 고치기.
 
 ## 이 앱에서 특히 볼 것
-- 식사 사진은 브라우저 저장소 안의 `data:` 이미지라 보드에 띄울 수 없습니다. `recent` strip은 항목의 `cover`를 빼거나 `{mono}`로 글자 칸을 보냅니다.
+- 식사 사진은 브라우저 저장소 안의 `data:` 이미지라 지금은 보드에 띄울 수 없습니다. `recent` strip은 항목의 `cover`를 빼거나 `{mono}`로 글자 칸을 보냅니다. Life Hub 사진 보관(P8, 설계 중)이 생기면 이 앱이 첫 적용 대상입니다.
 - '예시 아카이브' 모드(지어낸 기록)일 때는 올리지 않습니다.
 - 보드에는 **승인되어 앱에 저장된** 식사·위시만 보냅니다. Hub 수신함의 대기 후보는 보내지 않습니다.
 

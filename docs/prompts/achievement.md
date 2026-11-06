@@ -18,7 +18,8 @@
 3. 고른 타일로:
    - 앱 상태에서 manifest(v1)를 만드는 **순수 함수**(예: `buildBoardTiles(state, now)`)를 추가합니다. 네트워크·저장소 접근 없이 입력만으로 결과가 정해지게 하고, 무작위를 쓰지 않습니다(같은 입력이면 같은 출력이어야 중복 전송 방지가 동작합니다).
    - 타일 `id`는 후보 표의 id를 쓰고, 한 번 정하면 바꾸지 않습니다(사용자 배치가 id로 저장됩니다).
-   - **표지**: 이미지는 **주소만** 넣습니다(`data:` 이미지는 Hub가 목록째 거절). 주소는 board 허용 출처 안이어야 합니다(현재 `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`, `https://i.scdn.co`). 공개 주소가 없거나 허용 출처 밖이면 `src`를 빼고 `cover: {mono: '첫 글자'}`로 글자 칸을 보냅니다. **sleeve·hero는 `cover` 자체를 빼면 타일이 거절되니 빼지 않습니다.** strip 항목과 행 썸네일은 `cover`를 빼도 됩니다. 필요한 출처는 저에게 알려 주세요.
+   - **표지**: 이미지는 **주소만** 넣습니다(`data:` 이미지는 Hub가 목록째 거절). 주소는 board 허용 출처 안이어야 합니다(현재 목록은 board `js/config.js`의 `imageOrigins`: GitHub Pages, 알라딘, 위키미디어, Spotify, Apple Music `is1~5-ssl.mzstatic.com`, TMDB `image.tmdb.org`, 카카오 `t1.daumcdn.net`·`search1.kakaocdn.net`; 정확히 일치해야 함). 공개 주소가 없거나 허용 출처 밖이면 `src`를 빼고 `cover: {mono: '첫 글자'}`로 글자 칸을 보냅니다. **sleeve·hero는 `cover` 자체를 빼면 타일이 거절되니 빼지 않습니다.** strip 항목과 행 썸네일은 `cover`를 빼도 됩니다. 필요한 출처는 저에게 알려 주세요.
+   - **해상도**: 보드 칸은 한 변 최대 170px이고 2배 밀도 화면을 기준으로 합니다. hero(최대 4×2, 폭 약 710px)는 긴 변 1200px 이상, sleeve(2:3)는 400×600 이상, strip·행 썸네일은 300px 정도면 됩니다. 크기를 고를 수 있는 출처는 이 기준에 맞는 가장 작은 크기를 씁니다.
    - 표지가 있으면 `accent {h, s}`를 함께 보냅니다(새 색을 정하지 않습니다).
    - `href`는 이 앱의 GitHub Pages 주소(`https://kingjnu-sakayume.github.io/...`)만 씁니다. 목록 전체는 UTF-8로 64 KiB 이하.
    - **글자 길이**: board `js/schema.js`의 최대 길이를 기준으로 함수 안에서 자릅니다. 짧아서 잘 걸리는 것: `mono` 2, 지도 칸 이름 6, `unit` 8, `foot`의 `k`·`v` 10, `plate.name`·룰렛 후보 12, 큰 숫자 `value` 12, `pill` 20, 행 `value` 24, 타일 `name` 30, 라벨 80, 긴 문장 160. 글자 수는 JavaScript `.length`로 셉니다.
@@ -52,7 +53,7 @@
 ## 이 앱에서 특히 볼 것
 - 활동 기록(운동 등)과 업적이 한 앱에 있습니다. `activity` 타일은 활동 기록 중 가장 최근 하나만 보여줍니다.
 - 트로피 칸(`trophy`)은 카테고리 하나를 고르는 규칙이 필요합니다(가장 최근 취득한 카테고리 등). 규칙을 표에 적어 주세요. 카테고리당 업적은 지금 최대 43개라 칸(최대 60) 안에 들어갑니다.
-- 기록 사진은 기기 안에만 저장되니 보드에 쓸 수 없습니다.
+- 기록 사진은 기기 안에만 저장되니 지금은 보드에 쓸 수 없습니다. Life Hub 사진 보관(P8, 설계 중)이 생기면 따로 작업합니다. 그전까지 사진 칸은 `{mono}`.
 - 업적 정의 후보(Hub 제안)와 승인된 업적을 구분해, 보드에는 **승인되어 앱에 저장된 것만** 보냅니다.
 
 ## 끝나면 알려 줄 것

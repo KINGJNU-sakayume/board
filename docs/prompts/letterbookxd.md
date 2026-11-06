@@ -18,7 +18,8 @@
 3. 고른 타일로:
    - 앱 상태에서 manifest(v1)를 만드는 **순수 함수**(예: `buildBoardTiles(state, now)`)를 추가합니다. 네트워크·저장소 접근 없이 입력만으로 결과가 정해지게 하고, 무작위를 쓰지 않습니다(같은 입력이면 같은 출력이어야 중복 전송 방지가 동작합니다).
    - 타일 `id`는 후보 표의 id를 쓰고, 한 번 정하면 바꾸지 않습니다(사용자 배치가 id로 저장됩니다).
-   - **표지**: 이미지는 **주소만** 넣습니다(`data:` 이미지는 Hub가 목록째 거절). 주소는 board 허용 출처 안이어야 합니다(현재 `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`, `https://i.scdn.co`). 공개 주소가 없거나 허용 출처 밖이면 `src`를 빼고 `cover: {mono: '첫 글자'}`로 글자 칸을 보냅니다. **sleeve·hero는 `cover` 자체를 빼면 타일이 거절되니 빼지 않습니다.** strip 항목과 행 썸네일은 `cover`를 빼도 됩니다. 필요한 출처는 저에게 알려 주세요.
+   - **표지**: 이미지는 **주소만** 넣습니다(`data:` 이미지는 Hub가 목록째 거절). 주소는 board 허용 출처 안이어야 합니다(현재 목록은 board `js/config.js`의 `imageOrigins`: GitHub Pages, 알라딘, 위키미디어, Spotify, Apple Music `is1~5-ssl.mzstatic.com`, TMDB `image.tmdb.org`, 카카오 `t1.daumcdn.net`·`search1.kakaocdn.net`; 정확히 일치해야 함). 공개 주소가 없거나 허용 출처 밖이면 `src`를 빼고 `cover: {mono: '첫 글자'}`로 글자 칸을 보냅니다. **sleeve·hero는 `cover` 자체를 빼면 타일이 거절되니 빼지 않습니다.** strip 항목과 행 썸네일은 `cover`를 빼도 됩니다. 필요한 출처는 저에게 알려 주세요.
+   - **해상도**: 보드 칸은 한 변 최대 170px이고 2배 밀도 화면을 기준으로 합니다. hero(최대 4×2, 폭 약 710px)는 긴 변 1200px 이상, sleeve(2:3)는 400×600 이상, strip·행 썸네일은 300px 정도면 됩니다. 크기를 고를 수 있는 출처는 이 기준에 맞는 가장 작은 크기를 씁니다.
    - 표지가 있으면 `accent {h, s}`를 함께 보냅니다(새 색을 정하지 않습니다).
    - `href`는 이 앱의 GitHub Pages 주소(`https://kingjnu-sakayume.github.io/...`)만 씁니다. 목록 전체는 UTF-8로 64 KiB 이하.
    - **글자 길이**: board `js/schema.js`의 최대 길이를 기준으로 함수 안에서 자릅니다. 짧아서 잘 걸리는 것: `mono` 2, 지도 칸 이름 6, `unit` 8, `foot`의 `k`·`v` 10, `plate.name`·룰렛 후보 12, 큰 숫자 `value` 12, `pill` 20, 행 `value` 24, 타일 `name` 30, 라벨 80, 긴 문장 160. 글자 수는 JavaScript `.length`로 셉니다.
@@ -51,7 +52,7 @@
 
 ## 이 앱에서 특히 볼 것
 - 표지는 알라딘(image.aladin.co.kr)·위키미디어면 허용 출처 안입니다. 몇몇 책은 다른 출처(namu.wiki, nl.go.kr 등)라 글자 칸이 됩니다. 몇 권인지 표에 적어 주세요.
-- 알라딘 Open API는 2026-10-30에 종료됐습니다. 이미 저장된 image.aladin.co.kr 주소가 계속 열린다는 보장은 없으니, 표지가 안 열리면 글자 칸으로 넘어가는지(보드가 처리) 정도만 확인하고 표지 출처를 바꾸는 작업은 따로 합니다.
+- 알라딘 Open API는 2026-10-30에 종료됐고, 이미 저장된 image.aladin.co.kr 주소가 계속 열린다는 보장은 없습니다. **표지 출처를 카카오 책 검색으로 옮기는 작업은 이 앱의 별도 프롬프트(`letterbookxd-covers.md`)로 합니다.** 이번 작업에서는 저장된 `coverImageUrl`을 그대로 쓰되, 허용 출처 밖이면 `{mono}`로 보냅니다.
 - 판본(`editions`)의 권 정보로 `series`(칸 채우기) 타일을 만들 수 있는지 확인해 주세요.
 - 이 앱에는 밑줄·인용 기능이 없으니 후보의 `quote`는 빼 주세요.
 - 독서 기록은 Hub와 sync 문서로 오갑니다(`letterbookxd:sync`). 보드 타일 함수는 sync 코드와 섞지 마세요.

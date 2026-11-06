@@ -74,7 +74,7 @@
 - **앱이 올리는 목록에는 `data:` 이미지를 넣지 않는다.** Life Hub가 `data:`가 들어간 목록을 거절한다(life-hub `docs/P7_BOARD.md` 5.2). 보드 코드가 `data:image/`를 읽을 수 있는 건 이 저장소의 예시 데이터용이다.
 - 공개 주소가 없는 이미지(앱 브라우저 안에만 있는 사진 등)는 보드에 못 띄운다. 그럴 때는 `{ "mono": "푸" }`처럼 **`src` 없이** 보내면 글자 칸으로 나온다. 표지가 선택인 곳(strip 항목, 행 썸네일)은 `cover`를 아예 빼도 된다. **sleeve·hero는 `cover`가 필수**라 빼면 타일이 거절된다.
 - 허용되지 않은 출처는 **타일은 살리고 표지만 글자 한 칸(mono)으로** 바꾼다. `mono`가 없으면 제목 첫 글자.
-- 지금 허용 출처: `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`, `https://i.scdn.co`(Spotify 앨범 표지). 다른 출처가 필요하면 board 저장소에 요청한다(`js/config.js`와 `index.html` CSP를 같이 바꿈).
+- 지금 허용 출처: `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`, `https://i.scdn.co`(Spotify, 최대 640px), `https://is1-ssl.mzstatic.com`~`https://is5-ssl.mzstatic.com`(Apple Music), `https://image.tmdb.org`(TMDB 포스터), `https://t1.daumcdn.net`·`https://search1.kakaocdn.net`(카카오 책 표지). 출처는 정확히 일치해야 한다(하위 도메인 와일드카드 없음). 다른 출처가 필요하면 board 저장소에 요청한다(`js/config.js`와 `index.html` CSP를 같이 바꿈).
 
 **진행 `progress`**: `{ "value": 7, "max": 12, "text": "7 / 12화" }` — `0 ≤ value ≤ max`. `text`는 막대 옆에 쓰이고 화면 읽기 프로그램용 설명도 된다.
 

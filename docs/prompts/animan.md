@@ -18,7 +18,8 @@
 3. 고른 타일로:
    - 앱 상태에서 manifest(v1)를 만드는 **순수 함수**(예: `buildBoardTiles(state, now)`)를 추가합니다. 네트워크·저장소 접근 없이 입력만으로 결과가 정해지게 하고, 무작위를 쓰지 않습니다(같은 입력이면 같은 출력이어야 중복 전송 방지가 동작합니다).
    - 타일 `id`는 후보 표의 id를 쓰고, 한 번 정하면 바꾸지 않습니다(사용자 배치가 id로 저장됩니다).
-   - **표지**: 이미지는 **주소만** 넣습니다(`data:` 이미지는 Hub가 목록째 거절). 주소는 board 허용 출처 안이어야 합니다(현재 `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`, `https://i.scdn.co`). 공개 주소가 없거나 허용 출처 밖이면 `src`를 빼고 `cover: {mono: '첫 글자'}`로 글자 칸을 보냅니다. **sleeve·hero는 `cover` 자체를 빼면 타일이 거절되니 빼지 않습니다.** strip 항목과 행 썸네일은 `cover`를 빼도 됩니다. 필요한 출처는 저에게 알려 주세요.
+   - **표지**: 이미지는 **주소만** 넣습니다(`data:` 이미지는 Hub가 목록째 거절). 주소는 board 허용 출처 안이어야 합니다(현재 목록은 board `js/config.js`의 `imageOrigins`: GitHub Pages, 알라딘, 위키미디어, Spotify, Apple Music `is1~5-ssl.mzstatic.com`, TMDB `image.tmdb.org`, 카카오 `t1.daumcdn.net`·`search1.kakaocdn.net`; 정확히 일치해야 함). 공개 주소가 없거나 허용 출처 밖이면 `src`를 빼고 `cover: {mono: '첫 글자'}`로 글자 칸을 보냅니다. **sleeve·hero는 `cover` 자체를 빼면 타일이 거절되니 빼지 않습니다.** strip 항목과 행 썸네일은 `cover`를 빼도 됩니다. 필요한 출처는 저에게 알려 주세요.
+   - **해상도**: 보드 칸은 한 변 최대 170px이고 2배 밀도 화면을 기준으로 합니다. hero(최대 4×2, 폭 약 710px)는 긴 변 1200px 이상, sleeve(2:3)는 400×600 이상, strip·행 썸네일은 300px 정도면 됩니다. 크기를 고를 수 있는 출처는 이 기준에 맞는 가장 작은 크기를 씁니다.
    - 표지가 있으면 `accent {h, s}`를 함께 보냅니다(새 색을 정하지 않습니다).
    - `href`는 이 앱의 GitHub Pages 주소(`https://kingjnu-sakayume.github.io/...`)만 씁니다. 목록 전체는 UTF-8로 64 KiB 이하.
    - **글자 길이**: board `js/schema.js`의 최대 길이를 기준으로 함수 안에서 자릅니다. 짧아서 잘 걸리는 것: `mono` 2, 지도 칸 이름 6, `unit` 8, `foot`의 `k`·`v` 10, `plate.name`·룰렛 후보 12, 큰 숫자 `value` 12, `pill` 20, 행 `value` 24, 타일 `name` 30, 라벨 80, 긴 문장 160. 글자 수는 JavaScript `.length`로 셉니다.
@@ -51,7 +52,12 @@
 
 ## 이 앱에서 특히 볼 것
 - 작품마다 `accent_color`가 `#색 코드`로 있습니다. `accent {h, s}`(h 0~360, s 0~1)로 바꿔 보내고, 바꾸는 함수도 테스트해 주세요.
-- 작품 표지(`cover_url`)는 지금 모두 허용 출처 밖(wallpapers.com, nflxso.net 등)이라 글자 칸이 됩니다. 권(volume) 표지는 대부분 알라딘이라 허용 안입니다. 1단계 표에 "작품 표지(글자 칸)"와 "지금 보는 권 표지(알라딘)"를 함께 적어 제가 고르게 해 주세요.
+- **작품 표지는 TMDB(The Movie Database) 포스터로 바꿉니다.** 지금 작품 `cover_url`은 허용 출처 밖(wallpapers.com, nflxso.net 등)이고 오래 유지된다는 보장도 없습니다.
+  - 작품 데이터(`src/data/series/*.json`)에 `tmdb_id`(TV/영화 구분 포함)와 `tmdb_poster_path`를 더하고, 표지 주소는 `https://image.tmdb.org/t/p/w780<poster_path>`(sleeve)로 만듭니다. 한국어 포스터가 있으면 그것을, 없으면 원어 포스터를 고릅니다.
+  - **TMDB 키는 앱에 넣지 않습니다.** 데이터를 채우는 스크립트(`scripts/`)가 환경 변수 `TMDB_API_KEY`(또는 읽기 토큰)로 한 번 조회해 JSON에 경로만 저장합니다. 키는 커밋하지 않고, 실행은 제가 키를 넣어 합니다. 작품마다 찾은 TMDB 항목을 표로 보여주고 제가 확인한 뒤 저장합니다(동명 작품 오매칭 방지).
+  - 앱 화면 어딘가(정보·설정)에 TMDB 출처 표기("This product uses the TMDB API but is not endorsed or certified by TMDB.")와 로고를 둡니다. 약관 원문은 TMDB 사이트에서 확인해 주세요.
+  - `accent`는 기존 `accent_color`를 그대로 씁니다.
+- 권(volume) 표지는 대부분 알라딘(image.aladin.co.kr)인데, 알라딘 Open API는 2026-10-30에 끝났고 기존 이미지 주소가 계속 열린다는 보장이 없습니다. 권 표지를 바꾸는 작업은 책장(letterbookxd)과 같은 카카오 원본 방식을 따르되 이번 작업 범위는 아닙니다. 1단계 표에는 작품 포스터(TMDB)와 권 표지(알라딘, 불안정)를 함께 적어 제가 고르게 해 주세요.
 - 진행 기록은 Hub와 sync 문서로 오갑니다(`animan:sync`). 타일 함수는 sync 코드와 섞지 말고, 진행 기록 저장소(`src/lib/progress/store.ts`)의 상태를 입력으로 받게 하세요.
 - `now` 타일의 뒷면 목록(`list`)과 상세(`detail`)는 같은 "최근 정주행" 데이터를 다른 개수로 씁니다(뒷면 3~5, 상세 5).
 

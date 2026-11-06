@@ -14,5 +14,7 @@
 | food | [food.md](food.md) | 기기 안 | PALATE 보드 타일 고르기 + 만드는 함수 + Hub 업로드 + README |
 | diaryroulette | [diaryroulette.md](diaryroulette.md) | 기기 안 | 일기 룰렛 보드 타일 고르기 + 만드는 함수 + Hub 업로드 + README |
 | life-hub | [life-hub.md](life-hub.md) | — | 보드 API 설계 문서(P7) 갱신 — **완료** |
+| letterbookxd | [letterbookxd-covers.md](letterbookxd-covers.md) | — | 표지를 카카오 책 검색(원본 약 458×672)으로 |
+| life-hub | [life-hub-photos.md](life-hub-photos.md) | — | 보드용 개인 사진 보관(R2 + 서명 주소) 설계(P8 후보) |
 
 프롬프트를 고치려면 `scripts/make-prompts.py`를 고치고 `python3 scripts/make-prompts.py`로 다시 만듭니다.
