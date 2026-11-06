@@ -14,6 +14,15 @@ export const CONFIG = Object.freeze({
     'https://kingjnu-sakayume.github.io',
     'https://image.aladin.co.kr',
     'https://upload.wikimedia.org',
+    'https://i.scdn.co',              // Spotify 앨범 표지 (최대 640px, 썸네일용)
+    'https://is1-ssl.mzstatic.com',  // Apple Music 표지 (potcast)
+    'https://is2-ssl.mzstatic.com',  // Apple Music 표지 (potcast)
+    'https://is3-ssl.mzstatic.com',  // Apple Music 표지 (potcast)
+    'https://is4-ssl.mzstatic.com',  // Apple Music 표지 (potcast)
+    'https://is5-ssl.mzstatic.com',  // Apple Music 표지 (potcast)
+    'https://image.tmdb.org',         // TMDB 포스터 (AniMan 작품)
+    'https://t1.daumcdn.net',         // 카카오 책 검색 원본 표지 (책장, AniMan 권)
+    'https://search1.kakaocdn.net',   // 카카오 책 검색 썸네일 (원본을 못 꺼낼 때)
   ],
 
   // 타일을 눌렀을 때 여는 앱 주소는 이 출처만 허용한다.

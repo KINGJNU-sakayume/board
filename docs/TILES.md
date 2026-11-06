@@ -9,9 +9,12 @@
 - 앱이 목록을 올리는 곳은 **Life Hub에 있습니다**(life-hub `docs/P7_BOARD.md` 5장, 2026-11-05 배포):
   `PUT <앱 경로>/v1/board`, 스코프 `<앱 id>:board`. 이 스코프는 앱을 연결할 때 함께 받으므로, 그 전에 연결한 앱은 **한 번 다시 연결**해야 합니다(업로드가 `403 insufficient_scope`).
   - 같은 내용은 `{ unchanged: true }`, 저장된 것보다 오래되거나 같은 `generated_at`은 `{ ignored: true }`로 무시됩니다.
-  - 올리는 빈도: 타일에 영향을 주는 변화가 있을 때, 앱마다 **10분에 한 번 이하**, 마지막으로 올린 것과 내용(sha256)이 다를 때만.
+  - 올리는 빈도: 타일에 영향을 주는 변화가 있을 때, 앱마다 **10분에 한 번 이하**, 마지막으로 올린 것과 내용(sha256, `generated_at` 빼고)이 다를 때만. 10분 안에 앱이 닫혀 못 보낸 변경은 다음에 앱을 열 때 바로 보낸다.
+  - 앱을 열 때 마지막으로 올린 지 하루가 넘었으면 **내용이 같아도** 한 번 보낸다. 보드의 '오래됨'(14일)은 Hub가 받은 시각 기준이라, 같은 내용이라고 안 보내면 매일 쓰는 앱도 오래됨으로 보인다.
+  - Hub는 앱마다 **최신 목록 하나**만 보관한다. 기록이 기기 안에만 있는 앱은 기록이 없는 기기(새 PC 등)가 빈 목록으로 다른 기기의 목록을 덮을 수 있으니, 기록이 하나도 없으면 올리지 않고, 올리는 기기를 정하는 규칙을 둔다. 예시(체험) 모드의 데이터는 올리지 않는다.
 - 앱 작업 순서: (1) 자기 상태에서 manifest를 만드는 **순수 함수**(예: `buildBoardTiles(state, now)`)와 지어낸 값의 **예시 출력**, 테스트, README "보드 타일" 절 → (2) 그 함수를 위 업로드에 연결(10분에 한 번 이하, 내용이 바뀌었을 때만, `insufficient_scope`면 토큰을 지우지 않고 다시 연결 안내). 두 단계를 한 작업으로 맡깁니다(`docs/prompts/`).
 - 예시 출력은 지어낸 값만 씁니다. 실제 기록·개인 데이터·토큰을 저장소에 넣지 않습니다.
+- 타일의 글자는 앱을 다시 열 때까지 그대로 보드에 남습니다. "어제", "3일 전", "오늘의 미션"처럼 날이 바뀌면 틀려지는 말 대신 날짜(`11/5`)를 쓰거나 날짜를 함께 넣습니다.
 
 ## 1. 전체 모양
 
@@ -66,12 +69,12 @@
 
 ## 3. 작은 조각
 
-**표지 `cover`**: `{ "src": "...", "alt": "", "mono": "푸" }`
+**표지 `cover`**: `{ "src": "...", "alt": "", "mono": "푸" }` — `src`와 `mono` 중 하나는 있어야 한다.
 - `src`는 보드 허용 출처(`imageOrigins`)의 https **주소**. 보드를 연 브라우저가 그 주소에서 바로 불러오고, Hub는 이미지를 저장하지 않는다.
 - **앱이 올리는 목록에는 `data:` 이미지를 넣지 않는다.** Life Hub가 `data:`가 들어간 목록을 거절한다(life-hub `docs/P7_BOARD.md` 5.2). 보드 코드가 `data:image/`를 읽을 수 있는 건 이 저장소의 예시 데이터용이다.
-- 공개 주소가 없는 이미지(앱 브라우저 안에만 있는 사진 등)는 보드에 못 띄운다. `cover`를 빼면 글자 칸으로 나온다.
+- 공개 주소가 없는 이미지(앱 브라우저 안에만 있는 사진 등)는 보드에 못 띄운다. 그럴 때는 `{ "mono": "푸" }`처럼 **`src` 없이** 보내면 글자 칸으로 나온다. 표지가 선택인 곳(strip 항목, 행 썸네일)은 `cover`를 아예 빼도 된다. **sleeve·hero는 `cover`가 필수**라 빼면 타일이 거절된다.
 - 허용되지 않은 출처는 **타일은 살리고 표지만 글자 한 칸(mono)으로** 바꾼다. `mono`가 없으면 제목 첫 글자.
-- 지금 허용 출처: `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`. 다른 출처가 필요하면 board 저장소에 요청한다(`js/config.js`와 `index.html` CSP를 같이 바꿈).
+- 지금 허용 출처: `https://kingjnu-sakayume.github.io`, `https://image.aladin.co.kr`, `https://upload.wikimedia.org`, `https://i.scdn.co`(Spotify, 최대 640px), `https://is1-ssl.mzstatic.com`~`https://is5-ssl.mzstatic.com`(Apple Music), `https://image.tmdb.org`(TMDB 포스터), `https://t1.daumcdn.net`·`https://search1.kakaocdn.net`(카카오 책 표지). 출처는 정확히 일치해야 한다(하위 도메인 와일드카드 없음). 다른 출처가 필요하면 board 저장소에 요청한다(`js/config.js`와 `index.html` CSP를 같이 바꿈).
 
 **진행 `progress`**: `{ "value": 7, "max": 12, "text": "7 / 12화" }` — `0 ≤ value ≤ max`. `text`는 막대 옆에 쓰이고 화면 읽기 프로그램용 설명도 된다.
 
@@ -90,6 +93,8 @@
 | `now` | 지금 하는 중(강조 행 + '지금' 배지) |
 | `muted` | 흐리게(끝난 것, 빈 상태 안내) |
 
+**글자 규칙**: 선택 필드라도 빈 글자(`""`, 공백만)는 거절된다. 값이 없으면 필드를 뺀다. 글자 수는 JavaScript 문자열 길이(`.length`)로 센다. 최대 길이는 아래 표와 `js/schema.js`가 기준이고, 짧은 것들이 특히 잘 걸린다: `mono` 2, 지도 칸 이름 6, `unit` 8, `foot`의 `k`·`v` 10, `plate.name`·룰렛 후보 12, 큰 숫자 `value` 12, `pill` 20, 행 `value` 24, `name` 30.
+
 ## 4. 톤별 `data`
 
 ### sleeve — 표지 + 라벨 (지금 하는 한 가지)
@@ -97,14 +102,14 @@
 |---|---|
 | `label` ✓ | 맨 위 작은 글자(앱 이름) |
 | `title` ✓ | 제목 |
-| `cover` ✓ | 표지 (2:3 세로) |
+| `cover` ✓ | 표지 (2:3 세로). 주소가 없으면 `{mono}`만 |
 | `sub` | 보조 문장, `\n` 줄바꿈 가능, 160자 |
 | `pill` | 상태 배지 20자. 예: `어제 이어 봄` |
 | `progress` | 진행 |
 | `list`, `listLabel` | 뒷면 목록(행 1~12). 있으면 2x2에서 앞면과 7초마다 번갈아, 4x2에서 나란히 |
 
 ### hero — 표지 전면 (그룹의 주인공)
-`label` ✓, `title` ✓, `cover` ✓(정사각 권장), `sub`, `progress`, `list`(행 1~4, 4칸 폭에서만 오른쪽 판), `listLabel`.
+`label` ✓, `title` ✓, `cover` ✓(정사각 권장, 주소가 없으면 `{mono}`만), `sub`, `progress`, `list`(행 1~4, 4칸 폭에서만 오른쪽 판), `listLabel`.
 
 ### strip — 최근 N개 표지
 `label` ✓, `items` ✓ `[{title, cover?}]` 1~12개, `square`(true면 정사각, 앨범·음식).
@@ -137,4 +142,7 @@ board 저장소에서:
 ```bash
 npm run check      # 예시 데이터와 규격 검사
 ```
-앱 저장소에서는 자기 예시 출력(JSON)을 board의 `js/schema.js`의 `validateManifest`로 검사하는 테스트를 두면 좋습니다(파일을 복사해 쓰거나, 테스트에서 board의 raw 주소를 받아 쓰지 말고 고정 버전을 복사).
+앱 저장소에서는 자기 예시 출력(JSON)을 board의 `js/schema.js`의 `validateManifest`로 검사하는 테스트를 두면 좋습니다(테스트에서 board의 raw 주소를 받아 쓰지 말고 고정 버전을 복사).
+
+- **두 번째 인자 `policy`를 꼭 넘깁니다**: `{ imageOrigins, linkOrigins }`, 값은 board `js/config.js`와 같게. 빼면 표지나 `href`가 있는 타일이 모두 오류로 빠집니다.
+- `ok`만 보지 마세요. 타일 하나가 틀리면 그 타일만 빠지고 `ok`는 `true`입니다. **`errors`가 비었는지, 남은 타일 수가 입력과 같은지**를 확인합니다.
