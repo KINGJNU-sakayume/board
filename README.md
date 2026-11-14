@@ -58,6 +58,7 @@ docs/DESIGN.md        디자인 규칙 (통일 문서)
 docs/TILES.md         앱 → 보드 데이터 규격 v1
 docs/CANDIDATES.md    앱별 후보 타일
 docs/prompts/         저장소별 작업 프롬프트 (scripts/make-prompts.py 로 생성)
+AGENTS.md             이 저장소에서 AI가 따르는 작업 규칙 (실제 기록 금지, 규격 변경 시 함께 고칠 파일)
 ```
 
 ## 앱이 타일을 보내려면
