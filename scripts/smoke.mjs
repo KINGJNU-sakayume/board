@@ -11,6 +11,12 @@ const srv = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.
 await new Promise((r) => setTimeout(r, 700));
 mkdirSync('shots', { recursive: true });
 let fail = 0; const ok = (c, m) => { console.log((c ? '✓ ' : '✗ ') + m); if (!c) fail++; };
+// 설정 전 위젯은 보드에 없고 `+` 에만 있다. 날씨·시간표를 쓰는 사람의 브라우저(설정이 있음)를 흉내 낼 때 쓴다. 네트워크 위젯은 호출을 막는다.
+const SEED = JSON.stringify({ weather: { place: '예시', lat: '37.5', lon: '127.0' }, timetable: { text: '매일 09:00 강의 A' } });
+const seed = async (page) => {
+  await page.route(/open-meteo|thesportsdb/, (r) => r.abort());
+  await page.addInitScript((v) => { if (!localStorage.getItem('board.widgets.v1')) localStorage.setItem('board.widgets.v1', v); }, SEED);
+};
 
 const b = await chromium.launch();
 try {
@@ -21,10 +27,11 @@ try {
     const m = await p.evaluate(() => {
       const de = document.documentElement, sc = document.getElementById('scroller'), g = document.querySelector('.grid');
       return { vScroll: de.scrollHeight > innerHeight + 1, hScroll: sc.scrollWidth > sc.clientWidth, unit: getComputedStyle(de).getPropertyValue('--unit'), rows: getComputedStyle(de).getPropertyValue('--rows'),
-        fill: g.getBoundingClientRect().bottom, vh: innerHeight, tiles: document.querySelectorAll('.grid > .w').length };
+        fill: g.getBoundingClientRect().bottom, vh: innerHeight, tiles: document.querySelectorAll('.grid > .w').length, unset: document.querySelectorAll('.grid > .w[data-setup]').length };
     });
     ok(!m.vScroll, `${name}: 세로 스크롤 없음`); ok(m.hScroll, `${name}: 가로 스크롤 있음`);
     ok(m.vh - m.fill < 40, `${name}: 격자가 화면 아래까지 (${Math.round(m.vh - m.fill)}px 남음, 칸 ${m.unit} × ${m.rows}줄, 타일 ${m.tiles})`);
+    ok(m.unset === 0, `${name}: 설정 전 위젯은 보드에 없음 (${m.unset}개)`);
     ok(errs.length === 0, `${name}: 오류 없음 ${errs.join(' | ')}`);
     await p.screenshot({ path: `shots/${name}.png` });
     await p.close();
@@ -32,6 +39,7 @@ try {
 
   // 크기 조절: 편집 모드 → 핸들을 끄는 '도중'에 타일 크기가 바뀌어야 한다
   const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
+  await seed(p);
   await p.goto(URL); await p.waitForSelector('.w'); await p.waitForTimeout(400);
   await p.keyboard.press('KeyE'); await p.waitForTimeout(200);
   const t = p.locator('.w[data-id="board:weather"]');
@@ -75,20 +83,55 @@ try {
   }
   await p.close();
 
-  // 보드 위젯 설정 (네트워크 없는 것만): 설정 전 타일을 누르면 설정 창 → 저장하면 바로 그려진다
+  // 설정 전 위젯은 `+` 에서만: 「설정하고 추가」 → 설정 창 → 저장하면 보드에 올라온다(닫기만 하면 안 올라온다)
   {
     const q = await b.newPage({ viewport: { width: 1440, height: 900 } });
     await q.goto(URL); await q.waitForSelector('.w');
-    await q.click('.w[data-id="board:timetable"] .stretch');
+    const onBoard = (id) => q.locator(`.grid > .w[data-id="board:${id}"]`).count();
+    ok((await q.locator('.grid > .w[data-id^="board:"]').count()) === 0, '설정 전: 보드 위젯이 보드에 없음');
+    await q.keyboard.press('KeyE'); await q.click('#addBtn');
+    const names = await q.locator('#addList .addrow b').allTextContents();
+    ok(['날씨', '시간표', '스포츠', '가격 추적', 'D-day'].every((n) => names.includes(n)), `+ 목록에 위젯: ${names.join(', ')}`);
+    await q.click('button[aria-label="시간표 설정하고 추가"]'); await q.waitForSelector('#setDlg[open]');
+    await q.click('#setDlg button:has-text("닫기")'); await q.waitForTimeout(200);
+    ok((await onBoard('timetable')) === 0, '설정 창만 닫으면 보드에 올라오지 않음');
+    await q.click('#addBtn'); await q.click('button[aria-label="시간표 설정하고 추가"]');
     await q.fill('#setDlg textarea', '매일 00:00 아침 일정\n매일 23:59 밤 일정');
-    await q.click('#setDlg button[type=submit]'); await q.waitForTimeout(400);
+    await q.click('#setDlg button[type=submit]'); await q.waitForTimeout(500);
     const rows = await q.locator('.w[data-id="board:timetable"] .row').count();
-    await q.click('.w[data-id="board:price"] .stretch');
+    await q.click('#addBtn'); await q.click('button[aria-label="가격 추적 설정하고 추가"]');
     await q.fill('#f-price-item', '예시 이어폰'); await q.fill('#f-price-price', '189000'); await q.fill('#f-price-target', '170000');
-    await q.click('#setDlg button[type=submit]'); await q.waitForTimeout(400);
+    await q.click('#setDlg button[type=submit]'); await q.waitForTimeout(500);
     const price = await q.locator('.w[data-id="board:price"] .num').textContent();
-    ok(rows === 2 && price.startsWith('189,000'), `위젯 설정: 시간표 ${rows}행, 가격 ${price}`);
+    ok(rows === 2 && price.startsWith('189,000') && (await onBoard('timetable')) === 1, `설정하고 추가: 시간표 ${rows}행, 가격 ${price}`);
     await q.screenshot({ path: 'shots/widgets-set.png' });
+    // 설정을 마친 위젯은 새로고침 뒤에도 보드에 있고, 설정 안 한 위젯은 여전히 `+` 에만 있다
+    await q.reload(); await q.waitForSelector('.w'); await q.waitForTimeout(400);
+    ok((await onBoard('timetable')) === 1 && (await onBoard('price')) === 1 && (await onBoard('sports')) === 0 && (await onBoard('dday')) === 0, '새로고침 뒤: 설정한 것만 보드에 있음');
+    await q.close();
+  }
+
+  // 저장된 배치(이 브라우저나 다른 기기)에 설정 전 위젯이 보드에 들어 있어도 `+` 에만 둔다
+  {
+    const q = await b.newPage({ viewport: { width: 1440, height: 900 } });
+    await q.addInitScript(() => localStorage.setItem('board.layout.v1', JSON.stringify({ v: 1, g: { day: [['board:sports', '4x1'], ['board:dday', '1x1'], ['board:price', '2x1']] }, tray: [] })));
+    await q.goto(URL); await q.waitForSelector('.w'); await q.waitForTimeout(300);
+    ok((await q.locator('.grid > .w[data-id^="board:"]').count()) === 0, '저장된 배치에 있어도 설정 전 위젯은 보드에 올리지 않음');
+    await q.close();
+  }
+
+  // 상태 점 → 연결 대화상자 (예시 데이터: 속이 빈 고리. 로컬 주소에서는 연결 단추 대신 안내)
+  {
+    const q = await b.newPage({ viewport: { width: 1440, height: 900 } });
+    await q.goto(URL); await q.waitForSelector('.w'); await q.waitForTimeout(300);
+    ok((await q.locator('.top .slink, .top .pillbtn, .top .status').count()) === 0 && (await q.locator('.top button:visible').count()) === 1, '헤더: 보이는 컨트롤은 상태 점 하나');
+    ok((await q.locator('#dot').getAttribute('data-state')) === 'off', '상태 점: 예시 데이터는 속이 빈 고리');
+    await q.click('#statusDot'); await q.waitForSelector('#linkDlg[open]');
+    const txt = await q.locator('#linkDlg').textContent();
+    ok(/예시 데이터/.test(txt) && /배포된 주소/.test(txt) && !/null|undefined/.test(txt) && (await q.locator('#linkDlg .act:has-text("연결")').count()) === 0, '연결 대화상자: 상태 문장과 안내만(로컬에서는 연결 단추 없음)');
+    await q.keyboard.press('Escape');
+    await q.keyboard.press('KeyE'); await q.waitForTimeout(150);
+    ok((await q.locator('#addBtn').textContent()) === '위젯 추가' && (await q.locator('#addBtn').evaluate((e) => getComputedStyle(e).borderRadius)) === '0px', '편집: 알약이 아닌 텍스트 버튼');
     await q.close();
   }
 
@@ -103,6 +146,7 @@ try {
     const inbox = { approved: [], receipts: [], mode: 'ok' };         // 가짜 /board/v1/candidates, /receipts
     const proposals = { sent: [], fail: 1 };                          // 가짜 /board/v1/proposals (처음 한 번은 500)
     const q = await b.newPage({ viewport: { width: 1440, height: 900 } });
+    await seed(q);
     await q.route(HUB + '/**', async (route) => {
       const u = new globalThis.URL(route.request().url());
       if (u.pathname === '/oauth/token') {
@@ -153,6 +197,10 @@ try {
     ok(tokenCalls[0] === 'authorization_code' && JSON.stringify(ids) === JSON.stringify(['animan:now', 'hub:inbox', 'sub:old', 'sub:station']), `연결 마무리 후 실제 타일만: ${ids.join(', ')}`);
     const st = await q.locator('#status').textContent();
     ok(/^Life Hub · /.test(st), '상태 줄: ' + st);
+    ok((await q.locator('#dot').getAttribute('data-state')) === 'on', '상태 점: 연결되면 채운 점');
+    await q.click('#statusDot'); await q.waitForSelector('#linkDlg[open]');
+    ok((await q.locator('#linkDlg .act:has-text("연결 해제")').count()) === 1, '연결 대화상자: 연결 해제는 여기에 있음');
+    await q.keyboard.press('Escape');
     ok(await q.locator('.w[data-id="sub:old"] .staleb').textContent() === '오래됨 · 20일 전' && !(await q.locator('.w[data-id="animan:now"] .staleb').count()), '오래된 앱 목록에만 오래됨 표시');
     await q.screenshot({ path: 'shots/hub-connected.png' });
     // 룰렛 제안: 뽑고 → 보내기(처음 500) → 같은 키로 다시 → 제안함

@@ -15,7 +15,7 @@ export function sizesOf(t) {
 }
 
 export function initEdit(o) {
-  const { page, sc, tray, live, groups, key, menuExtra, onChange } = o;
+  const { page, sc, tray, live, groups, key, menuExtra, onChange, onSetup } = o;
   const toastEl = $('#toast'), addDlg = $('#addDlg');
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   let editing = false, swallow = false, eatClick = false, lastType = 'mouse';
@@ -46,6 +46,8 @@ export function initEdit(o) {
         if (!Array.isArray(it) || typeof it[0] !== 'string') return;
         const t = Object.hasOwn(by, it[0]) ? by[it[0]] : null; if (!t) return;
         if (sizesOf(t).indexOf(it[1]) >= 0) applySize(t, it[1]);
+        // 설정 전 위젯은 저장된 배치(이 브라우저·다른 기기)에 있어도 `+` 에만 둔다
+        if (t.hasAttribute('data-setup')) { tray.appendChild(t); return; }
         grid.appendChild(t);
       });
     });
@@ -345,10 +347,21 @@ export function initEdit(o) {
     items.forEach((t) => {
       const row = el('div', 'addrow'), info = el('div'), b = el('b', 'block'), s = el('span', 'sub');
       b.textContent = t.dataset.name; s.textContent = groupName(t.dataset.home) + ' · ' + label(t.dataset.size); info.append(b, s);
-      const add = el('button', 'act soft'); add.type = 'button'; add.textContent = '추가'; add.setAttribute('aria-label', t.dataset.name + ' 추가');
-      add.addEventListener('click', () => { $('.grid[data-group="' + t.dataset.home + '"]').appendChild(t); if (editing) t.setAttribute('tabindex', '0'); save(); renderAdd(); say(t.dataset.name + ' 추가됨'); });
+      const setup = t.hasAttribute('data-setup') && onSetup;
+      const add = el('button', 'act soft'); add.type = 'button'; add.textContent = setup ? '설정하고 추가' : '추가'; add.setAttribute('aria-label', t.dataset.name + (setup ? ' 설정하고 추가' : ' 추가'));
+      add.addEventListener('click', () => {
+        if (setup) { addDlg.close(); onSetup(t); return; }   // 설정에 성공하면 main.js 가 place() 로 올린다
+        place(t); renderAdd();
+      });
       row.append(info, add); box.appendChild(row);
     });
+  }
+  /** 트레이의 타일을 홈 그룹 격자에 올린다. */
+  function place(t) {
+    const grid = $('.grid[data-group="' + t.dataset.home + '"]'); if (!grid) return;
+    flip(() => grid.appendChild(t));
+    if (editing) t.setAttribute('tabindex', '0');
+    save(); say(t.dataset.name + ' 추가됨');
   }
   $('#addBtn').addEventListener('click', () => { renderAdd(); addDlg.showModal(); });
   $('#closeAdd').addEventListener('click', () => addDlg.close());
@@ -356,7 +369,7 @@ export function initEdit(o) {
   $('#resetLayout').addEventListener('click', () => { if (DEFAULT) { applyLayout(DEFAULT); save(); renderAdd(); say('기본 배치로 되돌렸어요.'); } });
 
   return {
-    attach, applySize, save, flip,
+    attach, applySize, save, flip, place,
     isEditing: () => editing,
     /** 처음 그린 직후 한 번: 지금 배치를 기본값으로 기억하고, 저장된 배치가 있으면 덮어쓴다. */
     start() { DEFAULT = snapshot(); const s = loadSaved(); if (s) applyLayout(s); refreshEmpty(); },

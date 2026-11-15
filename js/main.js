@@ -14,7 +14,7 @@ import { connectAvailable, isConnected, beginConnect, completeStoredCallback, fe
 const $ = (s, r) => (r || document).querySelector(s);
 const policy = { imageOrigins: CONFIG.imageOrigins, linkOrigins: CONFIG.linkOrigins };
 const page = $('#page'), sc = $('#scroller'), track = $('#track'), tray = $('#tray'), live = $('#live'), statusEl = $('#status');
-const detailDlg = $('#detailDlg'), setDlg = $('#setDlg');
+const detailDlg = $('#detailDlg'), setDlg = $('#setDlg'), linkDlg = $('#linkDlg'), dotEl = $('#dot'), dotBtn = $('#statusDot');
 const pad2 = (n) => String(n).padStart(2, '0');
 const tiles = new Map();          // 'app:id' → 타일 요소
 let edit = null, layout = null, problems = [];
@@ -55,6 +55,8 @@ function fill(t, def) {
   // Hub 가 받은 지 오래된 앱 목록: 실제 나이를 붙여 '오래됨'으로 표시한다(값을 지우거나 꾸미지 않는다)
   if (def.__staleDays) t.prepend(h('span', { class: 'staleb', text: `오래됨 · ${def.__staleDays}일 전` }));
   t.toggleAttribute('data-stale', !!def.__staleDays);
+  // 설정 전 보드 위젯: 보드에는 올리지 않고 `+` 에서만 추가한다(설정하고 나면 이 표시가 사라진다)
+  t.toggleAttribute('data-setup', !!def.__needsSetup);
 }
 
 function makeTile(def) {
@@ -93,7 +95,9 @@ async function loadWidgets(first) {
     try {
       const v = validateTile(raw, 'board.' + w.id, policy);
       v.__widget = raw.__needsSetup ? w : null;
-      if (!raw.__needsSetup) v.__widgetSettings = w;
+      v.__needsSetup = !!raw.__needsSetup;
+      if (raw.__needsSetup) v.show = false;
+      else v.__widgetSettings = w;
       defs.push(v);
     } catch (e) { problems.push('보드 위젯 ' + w.id + ': ' + e.message); }
   }
@@ -162,7 +166,7 @@ function openDetail(def) {
   detailDlg.showModal();
 }
 
-function openSettings(w) {
+function openSettings(w, after) {
   const s = { ...settingsOf(w.id) };
   const form = h('form', { method: 'dialog', class: 'setform' });
   const inputs = {};
@@ -195,6 +199,7 @@ function openSettings(w) {
     try { if (w.prepare) await w.prepare(next); } catch (er) { msg.textContent = er.message; return; }
     if (!saveSettings(w.id, next)) { msg.textContent = '이 브라우저에 저장하지 못했어요.'; return; }
     setDlg.close(); await refresh(false);
+    if (after) after();
   });
   form.append(msg, h('div', { class: 'flex ac mt8' }, save, locate, close));
   setDlg.replaceChildren(h('div', { class: 'hd' }, h('h2', { text: w.name + ' 설정' })), h('p', { class: 'sub mt6', text: '이 브라우저에만 저장돼요.' }), form);
@@ -228,26 +233,44 @@ function showMemos(memos) {
 
 let lastAt = null;
 const hm = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-function showStatus() {
+/** 헤더에는 점 하나만 둔다. 문장은 숨김 텍스트(#status)·점의 title·연결 대화상자에 담는다. */
+function statusText() {
   const src = { sample: '예시 데이터', hub: 'Life Hub', offline: '오프라인', lost: 'Life Hub 연결 끊김' }[hub.mode];
   const when = hub.mode === 'offline' ? (hub.lastOkAt ? `마지막 ${hm(hub.lastOkAt)}` : '') : lastAt ? `${hm(lastAt)} 갱신` : '';
-  const parts = [src, when, problems.length ? `확인할 것 ${problems.length}개` : null, PHONE.matches ? '길게 누르면 편집' : '길게 누르거나 우클릭하면 편집'].filter(Boolean);
-  const kids = [document.createTextNode(parts.join(' · '))];
   const ls = layout && hub.mode === 'hub' ? layout.state.status : 'off';
   const ms = hub.mode === 'hub' ? memo.status : 'off';
-  if (ls === 'no_scope') parts.splice(1, 0, '배치 동기화 권한 없음');
-  else if (ms === 'no_scope') parts.splice(1, 0, '메모 권한 없음');
-  else if (hub.mode === 'hub' && hub.noPropose) parts.splice(1, 0, '룰렛 제안 권한 없음');
-  if (ls === 'error') parts.splice(1, 0, '배치 동기화 실패');
-  kids[0].textContent = parts.join(' · ');
-  // 연결 동작은 상태 줄의 글자 단추 하나뿐이다(상시 버튼을 늘리지 않음). 실제 주소에서 열렸을 때만.
-  if (connectAvailable() && (hub.mode === 'sample' || hub.mode === 'lost' || ls === 'no_scope' || ms === 'no_scope' || (hub.mode === 'hub' && hub.noPropose))) {
-    kids.push(document.createTextNode(' · '), h('button', { class: 'slink', type: 'button', text: hub.mode === 'sample' ? 'Life Hub에 연결' : '다시 연결', onclick: connectHub }));
-  }
-  statusEl.replaceChildren(...kids);
-  statusEl.title = [hub.message, layout && layout.state.message, memo.message, ...problems].filter(Boolean).join('\n');
-  $('#disconnectBtn').hidden = !isConnected();
+  const notes = [];
+  if (ls === 'no_scope') notes.push('배치 동기화 권한 없음');
+  else if (ms === 'no_scope') notes.push('메모 권한 없음');
+  else if (hub.mode === 'hub' && hub.noPropose) notes.push('룰렛 제안 권한 없음');
+  if (ls === 'error') notes.push('배치 동기화 실패');
+  return { text: [src, ...notes, when, problems.length ? `확인할 것 ${problems.length}개` : null].filter(Boolean).join(' · '), ls, ms };
 }
+function needsReconnect(ls, ms) { return hub.mode === 'sample' || hub.mode === 'lost' || ls === 'no_scope' || ms === 'no_scope' || (hub.mode === 'hub' && hub.noPropose); }
+function showStatus() {
+  const { text } = statusText();
+  statusEl.textContent = text;
+  const details = [hub.message, layout && layout.state.message, memo.message, ...problems].filter(Boolean);
+  dotBtn.title = [text, ...details].join('\n');
+  dotBtn.setAttribute('aria-label', '연결 상태: ' + text);
+  dotEl.dataset.state = hub.mode === 'hub' ? 'on' : 'off';
+}
+/** 연결·다시 연결·해제는 이 대화상자 한 곳에서만 한다. */
+function openLink() {
+  const { text, ls, ms } = statusText();
+  const details = [hub.message, layout && layout.state.message, memo.message, ...problems].filter(Boolean);
+  const actions = [];
+  if (connectAvailable() && needsReconnect(ls, ms)) actions.push(h('button', { class: 'act', type: 'button', text: hub.mode === 'sample' ? 'Life Hub에 연결' : '다시 연결', onclick: connectHub }));
+  if (isConnected()) actions.push(h('button', { class: 'act soft', type: 'button', text: '연결 해제', onclick: disconnectHub }));
+  linkDlg.replaceChildren(...[
+    h('div', { class: 'hd' }, h('h2', { id: 'linkT', text: 'Life Hub' }), h('button', { class: 'act soft', type: 'button', text: '닫기', onclick: () => linkDlg.close() })),
+    h('p', { class: 'sub mt6', text }),
+    details.length ? h('ul', { class: 'sub linklist' }, details.map((d) => h('li', { text: d }))) : null,
+    !connectAvailable() && !isConnected() ? h('p', { class: 'sub mt6', text: '배포된 주소(GitHub Pages)에서만 연결할 수 있어요.' }) : null,
+    actions.length ? h('div', { class: 'flex ac mt8' }, actions) : null].filter(Boolean));
+  linkDlg.showModal();
+}
+dotBtn.addEventListener('click', openLink);
 async function refresh(first) {
   problems = [];
   await loadWidgets(first);
@@ -257,10 +280,10 @@ async function refresh(first) {
   lastAt = new Date(); showStatus();
   if (edit) edit.refreshEmpty();
 }
-$('#disconnectBtn').addEventListener('click', async () => {
+async function disconnectHub() {
   disconnect(); if (layout) layout.reset(); hub.lost = false; hub.message = 'Life Hub 연결을 해제했어요.';
-  $('#addDlg').close(); await refresh(false);
-});
+  linkDlg.close(); await refresh(false);
+}
 
 /* ---------- 시작 ---------- */
 (async function start() {
@@ -270,6 +293,8 @@ $('#disconnectBtn').addEventListener('click', async () => {
   edit = initEdit({
     page, sc, tray, live, groups: CONFIG.groups, key: 'board.layout.v1',
     onChange: () => layout && layout.changed(),
+    // 설정 전 위젯은 「설정하고 추가」: 설정 창을 열고, 저장에 성공했을 때만 보드에 올린다
+    onSetup: (t) => { const w = WIDGETS.find((x) => 'board:' + x.id === t.dataset.id); if (w) openSettings(w, () => edit.place(t)); },
     menuExtra: (t) => {
       const def = t.__def; const w = def && (def.__widget || def.__widgetSettings);
       return w ? [{ label: '위젯 설정', icon: '⚙', run: () => openSettings(w) }] : [];

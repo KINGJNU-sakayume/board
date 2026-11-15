@@ -16,10 +16,11 @@
 
 <header class="top">
   <h1>Life Board</h1>
-  <p class="status"><span class="dot" aria-hidden="true"></span><span id="status">불러오는 중…</span></p>
+  <button class="dotbtn" type="button" id="statusDot" aria-haspopup="dialog" aria-label="연결 상태"><span class="dot" id="dot" aria-hidden="true"></span></button>
+  <span class="sr" id="status">불러오는 중…</span>
   <div class="editbar" id="editbar">
-    <button class="pillbtn plus" type="button" id="addBtn" aria-label="위젯 추가">+</button>
-    <button class="pillbtn" type="button" id="doneBtn">완료</button>
+    <button class="tbtn" type="button" id="addBtn">위젯 추가</button>
+    <button class="tbtn" type="button" id="doneBtn">완료</button>
   </div>
 </header>
 <p class="sr" id="live" role="status" aria-live="polite"></p>
@@ -36,11 +37,12 @@
 <div class="toast" id="toast" role="status" hidden><span id="toastMsg"></span><button class="act" type="button" id="toastBtn">되돌리기</button></div>
 
 <dialog id="detailDlg" aria-labelledby="detailT"></dialog>
+<dialog id="linkDlg" aria-labelledby="linkT"></dialog>
 <dialog id="setDlg" aria-label="위젯 설정"></dialog>
 <dialog id="addDlg" aria-labelledby="addT">
   <div class="hd"><h2 id="addT">위젯 추가</h2><button class="act soft" type="button" id="closeAdd">닫기</button></div>
   <div id="addList" class="mt6"></div>
-  <div class="dfoot"><button class="act quiet" type="button" id="resetLayout">기본 배치로 되돌리기</button><button class="act quiet" type="button" id="disconnectBtn" hidden>Life Hub 연결 해제</button></div>
+  <div class="dfoot"><button class="act quiet" type="button" id="resetLayout">기본 배치로 되돌리기</button></div>
 </dialog>
 </body>
 </html>

@@ -32,16 +32,17 @@ img{display:block}
 .page{height:100vh;height:100dvh;display:flex;flex-direction:column;gap:14px;padding:24px var(--pad) 18px;padding-left:max(var(--pad),env(safe-area-inset-left))}
 .top{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:8px 24px;flex-wrap:wrap;min-height:44px}
 .top h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em}
-.status{margin:0;font-size:13px;color:var(--mute)}
-.slink{background:none;border:0;padding:0;min-height:32px;color:var(--ink);font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.dotbtn{display:grid;place-items:center;width:44px;height:44px;margin:-8px -12px -8px 0;padding:0;border:0;background:none;cursor:pointer}
 .staleb{position:absolute;right:10px;top:10px;z-index:3;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:var(--paper-2);color:var(--mute);pointer-events:none}
 .w[data-stale]>:not(.staleb):not(.rm):not(.rz){opacity:.55}
-.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ink);margin-right:6px;vertical-align:middle}
+/* 상태 점: 채움 = Life Hub 정상, 속이 빈 고리 = 예시 데이터 · 오프라인 · 연결 끊김 (색을 쓰지 않는다) */
+.dot{display:block;width:10px;height:10px;border-radius:50%;background:var(--ink);opacity:.85}
+.dot[data-state="off"]{background:none;box-shadow:inset 0 0 0 1.5px var(--ink);opacity:.6}
+.dotbtn:hover .dot{opacity:1}
 .editbar{display:none;width:100%;justify-content:space-between;align-items:center}
-.pillbtn{min-height:40px;min-width:44px;padding:0 18px;border:0;border-radius:999px;cursor:pointer;font-weight:600;font-size:16px;
-  background:color-mix(in srgb,var(--ink) 14%,transparent);color:var(--ink);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-.pillbtn.plus{font-size:24px;line-height:1;padding:0 16px}
-.editing .top h1,.editing .status{display:none}
+.tbtn{min-height:44px;padding:0 4px;border:0;background:none;color:var(--mute);font-weight:600;font-size:15px;cursor:pointer;text-underline-offset:4px}
+.tbtn:hover,.tbtn:focus-visible{color:var(--ink);text-decoration:underline}
+.editing .top h1,.editing .dotbtn{display:none}
 .editing .editbar{display:flex}
 
 /* ---------- 가로 스크롤: 그룹마다 세로 칸 수는 같고, 타일은 위→아래, 왼쪽→오른쪽으로 빈칸 없이 채워진다 ---------- */
@@ -330,6 +331,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 dialog .hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
 dialog .hd h2{margin:0;font-size:16px;font-weight:800}
 dialog .row{padding:10px 0}
+.linklist{margin:8px 0 0;padding-left:18px}
 .dfoot{margin-top:8px;padding-top:6px;border-top:1px solid var(--hair);display:flex;justify-content:space-between;align-items:center;gap:8px}
 .lk{color:var(--mute);font-size:13px;text-decoration:underline;text-underline-offset:3px;display:inline-flex;align-items:center;min-height:44px}
 .addrow{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--hair)}
