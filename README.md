@@ -15,7 +15,7 @@
 | 보드 자체 위젯: 날씨(Open-Meteo), 스포츠(TheSportsDB), 시간표·가격 추적·D-day(직접 입력) | 됨. 우클릭 → 위젯 설정, 또는 설정 전 타일을 눌러 설정. 값은 이 브라우저에만 저장 |
 | Life Hub 연결 | 됨. 상태 줄의 「Life Hub에 연결」(GitHub Pages 주소에서만). 연결 전에는 **예시 데이터**(지어낸 값), 연결 후에는 앱들이 Hub에 올린 실제 타일 + 받은 제안 수. 14일 넘게 안 올라온 앱은 '오래됨' 표시. 해제는 `+` → 「Life Hub 연결 해제」 |
 | 앱이 Hub에 타일 올리기 | Hub 쪽은 됨(life-hub P7 B1). 앱 쪽은 9개 모두 올리는 중: **역 도장깨기**(11/6), **potcast**·**AniMan**·**책장**·**ELO Sorter**(11/7), **PALATE**·**켜켜이**·**업적 라이브러리**·**일기 룰렛**(11/8). 앱마다 할 일은 [docs/prompts/](docs/prompts/) |
-| 배치의 기기 간 동기화 | 됨(life-hub P7 B3, 배포됨). Life Hub에 연결돼 있으면 편집이 끝나고 2초 뒤 올리고, 새로고침 때 다른 기기의 변경을 받음. 둘이 겹치면 방금 한 편집이 이김. B2 때 연결했다면 한 번 다시 연결(상태 줄에 「배치 동기화 권한 없음 · 다시 연결」) |
+| 배치 | 이 브라우저의 localStorage 에만 저장(기기 간 동기화 없음) |
 | Claude 메모 | 됨(life-hub P7 B4, 배포됨). Claude 대화에서 "보드에 메모 남겨 줘" → 카드에서 승인한 것만 보드 「Claude 메모」 타일에 나옴. 보드에는 승인 버튼이 없음. B4 전에 연결했다면 한 번 다시 연결(상태 줄 「메모 권한 없음 · 다시 연결」) |
 | 룰렛 결과를 Hub에 제안으로 보내기 | 됨(life-hub P7 B5, 2026-11-05 배포). 역 도장깨기 타일(4×2)에서 돌리고 「제안 보내기」 → 역 도장깨기 수신함에 제안. 역 도장깨기가 지금 뽑을 수 있는 역만 받고, 앱에서 승인해야 목적지가 됨. 예시 데이터로는 보내지 않음. B5 전에 연결했다면 한 번 다시 연결 |
 
@@ -24,7 +24,7 @@
 ## 실행
 
 ```bash
-npm run dev        # http://localhost:8080 (ES 모듈이라 파일을 직접 열면 안 되고 서버가 필요)
+npm run dev        # http://127.0.0.1:8080 (ES 모듈이라 파일을 직접 열면 안 되고 서버가 필요)
 npm run check      # 문법, 예시 데이터 규격, CSP 와 설정 출처 확인
 npm run smoke      # Playwright 로 화면·편집·크기 조절 확인 (playwright 설치 필요)
 ```
@@ -47,7 +47,7 @@ js/edit.js            편집 모드 (길게 누르기, 옮기기, 핸들 크기 
 js/faces.js           sleeve 앞면/목록 전환
 js/accent.js          표지에서 포인트색 뽑기
 js/hub.js             Life Hub 연결(OAuth 2.1 + PKCE), 타일·제안 수 읽기, 룰렛 제안 보내기
-js/layoutsync.js      보드 배치·메모 문서를 기기 간에 동기화 (Hub 동기화 API)
+js/memostore.js       승인된 Claude 메모를 이 브라우저에 보관
 js/memos.js           승인된 Claude 메모를 받아 보드 문서에 저장하고 receipt 보내기
 js/main.js            불러오기, 그리기, 새로고침
 lifehub/index.html    Life Hub 연결 콜백 페이지
@@ -66,3 +66,7 @@ AGENTS.md             이 저장소에서 AI가 따르는 작업 규칙 (실제 
 1. [docs/TILES.md](docs/TILES.md) 규격으로 manifest를 만드는 함수를 앱에 둡니다.
 2. 고를 타일은 [docs/CANDIDATES.md](docs/CANDIDATES.md)에서.
 3. 각 저장소용 작업 프롬프트는 [docs/prompts/](docs/prompts/)에 있습니다.
+
+## 이 컴퓨터에서 Life Hub 연결 (선택)
+
+`npm run dev`로 연 `http://127.0.0.1:8080`(localhost 아님)에서도 상태 줄의 「Life Hub에 연결」을 쓸 수 있습니다. 보드가 Hub에 스스로 한 번 등록(DCR)하므로, Hub 배포 변수 `HUB_BOARD_LOCAL_REDIRECT_URI`를 `http://127.0.0.1:8080/lifehub/`로 설정하고 Hub를 다시 배포해야 합니다. 설정 전에는 「Life Hub가 이 컴퓨터의 보드를 아직 받지 않아요」가 나옵니다.
