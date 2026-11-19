@@ -8,6 +8,11 @@ const HUB = CONFIG.hub.origin;
 const APP_URL = CONFIG.hub.appUrl;
 export const CALLBACK_URL = APP_URL + 'lifehub/';
 export const CLIENT_ID = APP_URL + 'lifehub-client.json';
+// 이 컴퓨터에서 연 보드(npm run dev, http://127.0.0.1:8080). 공개 클라이언트 문서가 없어서 Life Hub 에 한 번 스스로 등록(DCR)하고
+// client_id 를 기억한다. Life Hub 는 배포 설정 HUB_BOARD_LOCAL_REDIRECT_URI 가 정확히 이 콜백일 때만 받는다.
+export const LOCAL_APP_ORIGIN = CONFIG.hub.localAppOrigin;
+export const LOCAL_CALLBACK_URL = LOCAL_APP_ORIGIN + '/lifehub/';
+const LOCAL_CLIENT_KEY = 'board.lifehub.local-client.v1';
 const RESOURCE = HUB + '/board';
 const TOKENS_KEY = 'board.lifehub.tokens.v1';
 const PENDING_KEY = 'board.lifehub.pending-auth.v1';
@@ -24,20 +29,45 @@ const readJson = (store, key) => { try { const raw = store.getItem(key); return 
 const b64url = (bytes) => { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
 const signal = () => (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal ? AbortSignal.timeout(TIMEOUT_MS) : undefined);
 
-/** 보드가 실제 주소(GitHub Pages)에서 열렸을 때만 연결할 수 있다. 로컬 개발은 예시 모드. */
+/** 실제 주소(GitHub Pages) 또는 이 컴퓨터의 로컬 주소(127.0.0.1:8080)에서 열렸을 때만 연결할 수 있다. 그 밖(localhost 등)은 예시 모드. */
+export const isLocalApp = (loc = location) => loc.origin === LOCAL_APP_ORIGIN;
 export function connectAvailable(loc = location) {
   const app = new URL(APP_URL);
-  return loc.origin === app.origin && loc.pathname.startsWith(app.pathname);
+  return isLocalApp(loc) || (loc.origin === app.origin && loc.pathname.startsWith(app.pathname));
+}
+/** 이 보드가 로그인하는 OAuth 클라이언트: 배포된 보드는 CIMD 문서, 로컬 보드는 등록해 둔 client_id. */
+function client() {
+  if (!isLocalApp()) return { id: CLIENT_ID, redirectUri: CALLBACK_URL };
+  let id = ''; try { id = localStorage.getItem(LOCAL_CLIENT_KEY) || ''; } catch { /* 없음 */ }
+  return { id, redirectUri: LOCAL_CALLBACK_URL };
+}
+async function ensureClient() {
+  const cur = client();
+  if (cur.id) return cur;
+  let r;
+  try {
+    r = await fetch(HUB + '/oauth/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: signal(),
+      body: JSON.stringify({ client_name: 'Life Board (this computer)', redirect_uris: [LOCAL_CALLBACK_URL], token_endpoint_auth_method: 'none',
+        grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'] }),
+    });
+  } catch { throw new HubError('network', 'Life Hub에 연결할 수 없어요.'); }
+  const body = await r.json().catch(() => ({}));
+  if (r.status === 400) throw new HubError('server', 'Life Hub가 이 컴퓨터의 보드를 아직 받지 않아요. Life Hub에 HUB_BOARD_LOCAL_REDIRECT_URI 를 설정하고 배포해 주세요.');
+  if (!r.ok || typeof body.client_id !== 'string' || !body.client_id) throw new HubError('server', `Life Hub 인증 서버 오류 (${r.status})`);
+  try { localStorage.setItem(LOCAL_CLIENT_KEY, body.client_id); } catch { throw new HubError('server', '이 브라우저에 연결 정보를 저장하지 못했어요.'); }
+  return { id: body.client_id, redirectUri: LOCAL_CALLBACK_URL };
 }
 export function isConnected() { return typeof readJson(localStorage, TOKENS_KEY)?.refresh_token === 'string'; }
 
 export async function beginConnect() {
+  const c = await ensureClient();
   const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)));
   const state = b64url(crypto.getRandomValues(new Uint8Array(16)));
   const challenge = b64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));
   sessionStorage.setItem(PENDING_KEY, JSON.stringify({ state, verifier, created_at: Date.now() }));
   const q = new URLSearchParams({
-    response_type: 'code', client_id: CLIENT_ID, redirect_uri: CALLBACK_URL, scope: CONFIG.hub.scope, state,
+    response_type: 'code', client_id: c.id, redirect_uri: c.redirectUri, scope: CONFIG.hub.scope, state,
     code_challenge: challenge, code_challenge_method: 'S256', resource: RESOURCE,
   });
   return HUB + '/authorize?' + q.toString();
@@ -48,11 +78,15 @@ async function tokenRequest(params) {
   try {
     r = await fetch(HUB + '/oauth/token', {
       method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ client_id: CLIENT_ID, ...params }).toString(), signal: signal(),
+      body: new URLSearchParams({ client_id: client().id, ...params }).toString(), signal: signal(),
     });
   } catch { throw new HubError('network', 'Life Hub에 연결할 수 없어요.'); }
   const body = await r.json().catch(() => ({}));
   if (!r.ok) {
+    if (body.error === 'invalid_client' && isLocalApp()) {   // Life Hub 가 이 컴퓨터의 등록을 잊음: 다음 연결 때 다시 등록
+      try { localStorage.removeItem(LOCAL_CLIENT_KEY); } catch { /* 없음 */ }
+      localStorage.removeItem(TOKENS_KEY); throw new HubError('not_connected', 'Life Hub 연결이 끝났어요. 다시 연결해 주세요.');
+    }
     if (body.error === 'invalid_grant') { localStorage.removeItem(TOKENS_KEY); throw new HubError('not_connected', 'Life Hub 연결이 끝났어요. 다시 연결해 주세요.'); }
     throw new HubError('server', `Life Hub 인증 서버 오류 (${r.status})`);
   }
@@ -81,7 +115,7 @@ export async function completeStoredCallback() {
   if (q.has('error')) throw new HubError('denied', q.get('error') === 'access_denied' ? 'Life Hub 연결을 거절했어요.' : 'Life Hub 연결에 실패했어요.');
   const code = q.get('code');
   if (!code) throw new HubError('state', '인증 코드가 없어요.');
-  await tokenRequest({ grant_type: 'authorization_code', code, redirect_uri: CALLBACK_URL, code_verifier: pending.verifier, resource: RESOURCE });
+  await tokenRequest({ grant_type: 'authorization_code', code, redirect_uri: client().redirectUri, code_verifier: pending.verifier, resource: RESOURCE });
   return true;
 }
 

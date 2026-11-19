@@ -4,7 +4,8 @@ export const CONFIG = Object.freeze({
   // 연결하면 GET /board/v1/tiles 로 앱들이 올린 실제 타일을 읽는다. 바꾸면 index.html CSP connect-src 도 같이.
   hub: {
     origin: 'https://life-hub-api.213303.workers.dev',
-    appUrl: 'https://kingjnu-sakayume.github.io/board/',   // 이 주소에서 열렸을 때만 연결할 수 있다(로컬은 예시 모드)
+    appUrl: 'https://kingjnu-sakayume.github.io/board/',   // 이 주소나 아래 localAppOrigin 에서 열렸을 때만 연결할 수 있다
+    localAppOrigin: 'http://127.0.0.1:8080',               // npm run dev (localhost 가 아니라 숫자 주소여야 Life Hub 가 받는다)
     scope: 'board:read board:inbox board:propose',
   },
   staleDays: 14,   // Hub가 받은 지 이만큼 지난 앱 목록은 '오래됨'으로 표시

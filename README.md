@@ -24,7 +24,7 @@
 ## 실행
 
 ```bash
-npm run dev        # http://localhost:8080 (ES 모듈이라 파일을 직접 열면 안 되고 서버가 필요)
+npm run dev        # http://127.0.0.1:8080 (ES 모듈이라 파일을 직접 열면 안 되고 서버가 필요)
 npm run check      # 문법, 예시 데이터 규격, CSP 와 설정 출처 확인
 npm run smoke      # Playwright 로 화면·편집·크기 조절 확인 (playwright 설치 필요)
 ```
