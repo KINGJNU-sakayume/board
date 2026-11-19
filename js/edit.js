@@ -15,7 +15,7 @@ export function sizesOf(t) {
 }
 
 export function initEdit(o) {
-  const { page, sc, tray, live, groups, key, menuExtra, onChange } = o;
+  const { page, sc, tray, live, groups, key, menuExtra } = o;
   const toastEl = $('#toast'), addDlg = $('#addDlg');
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   let editing = false, swallow = false, eatClick = false, lastType = 'mouse';
@@ -36,7 +36,7 @@ export function initEdit(o) {
     return { v: 1, g, tray: $$(':scope > .w', tray).map((t) => t.dataset.id) };
   }
   function refreshEmpty() { $$('.grid').forEach((g) => g.classList.toggle('empty', !g.querySelector(':scope > .w, :scope > .ph'))); }
-  function save() { refreshEmpty(); try { localStorage.setItem(key, JSON.stringify(snapshot())); } catch (e) { /* 저장 못 해도 보드는 돈다 */ } onChange && onChange(); }
+  function save() { refreshEmpty(); try { localStorage.setItem(key, JSON.stringify(snapshot())); } catch (e) { /* 저장 못 해도 보드는 돈다 */ } }
   function applyLayout(L) {
     if (!L || typeof L !== 'object' || Array.isArray(L) || !L.g || typeof L.g !== 'object') return false;
     const by = {}; $$('.w').forEach((t) => { by[t.dataset.id] = t; });
@@ -361,13 +361,6 @@ export function initEdit(o) {
     /** 처음 그린 직후 한 번: 지금 배치를 기본값으로 기억하고, 저장된 배치가 있으면 덮어쓴다. */
     start() { DEFAULT = snapshot(); const s = loadSaved(); if (s) applyLayout(s); refreshEmpty(); },
     refreshEmpty,
-    /** 지금 배치 (Life Hub 에 올릴 layout) */
     snapshot,
-    /** 다른 기기에서 온 배치를 적용하고 이 브라우저에도 저장한다. 다시 올리지 않도록 onChange 는 부르지 않는다. */
-    applyRemote(L) {
-      if (editing || !applyLayout(L)) return false;
-      try { localStorage.setItem(key, JSON.stringify(snapshot())); } catch (e) { /* 없음 */ }
-      return true;
-    },
   };
 }
