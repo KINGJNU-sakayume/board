@@ -66,3 +66,7 @@ AGENTS.md             이 저장소에서 AI가 따르는 작업 규칙 (실제 
 1. [docs/TILES.md](docs/TILES.md) 규격으로 manifest를 만드는 함수를 앱에 둡니다.
 2. 고를 타일은 [docs/CANDIDATES.md](docs/CANDIDATES.md)에서.
 3. 각 저장소용 작업 프롬프트는 [docs/prompts/](docs/prompts/)에 있습니다.
+
+## 이 컴퓨터에서 Life Hub 연결 (선택)
+
+`npm run dev`로 연 `http://127.0.0.1:8080`(localhost 아님)에서도 상태 줄의 「Life Hub에 연결」을 쓸 수 있습니다. 보드가 Hub에 스스로 한 번 등록(DCR)하므로, Hub 배포 변수 `HUB_BOARD_LOCAL_REDIRECT_URI`를 `http://127.0.0.1:8080/lifehub/`로 설정하고 Hub를 다시 배포해야 합니다. 설정 전에는 「Life Hub가 이 컴퓨터의 보드를 아직 받지 않아요」가 나옵니다.
